@@ -66,6 +66,7 @@ export const createNewProject = ({
                         features,
                         attractions,
                         status: 0,
+                        ordering: 0,
                         thumbnailPathUrl: fileData.thumbnail ? fileData.thumbnail[0].path : null,
                         thumbnailPathName: fileData.thumbnail ? fileData.thumbnail[0].filename : null,
                         locationID: location
