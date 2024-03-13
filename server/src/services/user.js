@@ -299,3 +299,73 @@ export const unBanUser = ({ id }) => {
     }
   });
 };
+
+export const addWishlist = ({ id ,list }) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let array = []     
+      list.forEach((item) => {
+        array.push({userID:id, projectID:item})
+      });
+      const wishlist = await db.WishList.bulkCreate(array,{
+          returning : true
+      })
+      resolve({
+        err : wishlist ? 1 : 0,
+        mess : wishlist ? "Can not add project to wishlist" : "Add to wishlist success",
+        data : wishlist ? "" : wishlist
+      })
+    } catch (err) {
+      console.log(err);
+      reject(err);
+    }
+  });
+};
+
+export const viewwishlist = ({id}) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const wishlist = await db.WishList.findAll({
+        where : {
+          userID : id
+        }
+      })
+      resolve({
+        err : wishlist ? 0 : 1,
+        mess : wishlist ? wishlist : "Can not view wish list"
+      })
+    } catch (err) {
+      console.log(err);
+      reject(err);
+    }
+  });
+};
+
+export const deletewishlist = ({id,list}) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let array = []
+      for (let i = 0; i < list.length; i++) {
+        const wishlist = await db.WishList.findOne({
+          where : {
+            projectID : list[0]
+          }
+        })
+      array.push(wishlist.id)
+        
+      }
+      await db.WishList.destroy({
+        where : {
+          id : array
+        }
+      })
+      resolve({
+        err : array ? 0 : 1,
+        mess : array ? "Delete project from wishlist success" : "Can not delete project from wishlist"
+      })
+    } catch (err) {
+      console.log(err);
+      reject(err);
+    }
+  });
+};
