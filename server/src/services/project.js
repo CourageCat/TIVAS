@@ -573,9 +573,9 @@ export const searchNameAndLocationProject = (info, limit) => {
                 include: {
                     model: db.Location,
                     attributes: ['id', 'name'],
-                    where: {
-                        name: { [Op.substring]: info }
-                    }
+                },
+                where:{
+                    name: { [Op.substring]: info }
                 },
                 limit,
             })
@@ -592,7 +592,7 @@ export const searchNameAndLocationProject = (info, limit) => {
                 },
                 limit,
             })
-            if (bestMatch.length !== 0 && projectByNameResponse.length !== 0 && projectByLocationResponse.length !== 0) {
+            if (bestMatch.length !== 0 || projectByNameResponse.length !== 0 || projectByLocationResponse.length !== 0) {
                 response = {};
                 response.bestMatch = bestMatch
                 response.ProjectName = projectByNameResponse;
