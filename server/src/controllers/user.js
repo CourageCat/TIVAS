@@ -76,11 +76,11 @@ export const addWishlist = async (req, res) => {
 };
 
 export const viewwishlist = async (req, res) => {
-  const response = await services.viewwishlist(req.body);
+  const response = await services.viewwishlist(req.query);
   return res.status(200).json(response);
 };
 
 export const deletewishlist = async (req, res) => {
-  const response = await services.deletewishlist(req.body);
+  const response = await services.deletewishlist(req.query);
   return res.status(200).json(response);
 };

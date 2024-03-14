@@ -209,8 +209,8 @@ export const getAllUsers = ({ page, limit, orderBy, orderType }) => {
           pageInput > countPages
             ? `Can not find any Users in Page (${pageInput}) because there are only (${countPages}) Pages of Users!`
             : response.length === 0
-            ? "Can not find any Users!"
-            : "Users found.",
+              ? "Can not find any Users!"
+              : "Users found.",
         data: response.length !== 0 ? response : null,
         count: response.length !== 0 ? response.length : 0,
         countPages: countPages,
@@ -236,9 +236,9 @@ export const getBankingUser = ({ username }) => {
 
       const customer = res
         ? await stripe.paymentMethods.list({
-            customer: res.refundHistoryID,
-            type: "card",
-          })
+          customer: res.refundHistoryID,
+          type: "card",
+        })
         : null;
       const brand = customer.data[0].card.brand;
       const last4 = customer.data[0].card.last4;
@@ -249,12 +249,12 @@ export const getBankingUser = ({ username }) => {
         mess: res ? "Successfully" : "Failure",
         data: res
           ? {
-              username,
-              brand,
-              last4,
-              exp_month,
-              exp_year,
-            }
+            username,
+            brand,
+            last4,
+            exp_month,
+            exp_year,
+          }
           : null,
       });
     } catch (err) {
@@ -300,21 +300,32 @@ export const unBanUser = ({ id }) => {
   });
 };
 
-export const addWishlist = ({ id ,list }) => {
+export const addWishlist = ({ id, list }) => {
   return new Promise(async (resolve, reject) => {
     try {
       let listdb = list.split(',')
-      let array = []     
-      listdb.forEach((item) => {
-        array.push({userID:id, projectID:item})
-      });
-      const wishlist = await db.WishList.bulkCreate(array,{
-          returning : true
+      let array = []
+      // listdb.forEach((item) => {
+      //   array.push({userID:id, projectID:item})
+      // });
+      for (let i = 0; i < listdb.length; i++) {
+        const wishList = await db.WishList.findOne({
+          where: {
+            userID: id,
+            projectID: listdb[i]
+          }
+        })
+        if (!wishList) {
+          array.push({ userID: id, projectID: listdb[i] })
+        }
+      }
+      const wishlist = await db.WishList.bulkCreate(array, {
+        returning: true
       })
       resolve({
-        err : wishlist ? 0 : 1,
-        mess : wishlist ?  "Add to wishlist success" : "Can not add project to wishlist",
-        data : wishlist ? wishlist : ""
+        err: wishlist ? 0 : 1,
+        mess: wishlist ? "Add to wishlist success" : "Can not add project to wishlist",
+        data: wishlist ? wishlist : ""
       })
     } catch (err) {
       console.log(err);
@@ -323,22 +334,76 @@ export const addWishlist = ({ id ,list }) => {
   });
 };
 
-export const viewwishlist = ({id}) => {
+export const viewwishlist = ({ id, page, limit, orderBy, orderType }) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const wishlist = await db.WishList.findAll({
-        nest: true,
-        where: {
-            userID : id,
-        },
-        include: {
-            model: db.Project,
-            attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID']
-        },
-    })
+      let response = [];
+      let wishListResponse = [];
+      let pageInput = 1;
+      let countPages = 0;
+      let queries = pagination({ page, limit, orderType, orderBy });
+      const userResponse = await db.User.findByPk(id);
+      if (userResponse) {
+        const wistListResponsePagination = await db.WishList.findAll({
+          where: {
+            userID: id,
+          }
+        })
+        countPages = wistListResponsePagination.length !== 0 ? 1 : 0;
+        if (wistListResponsePagination.length / queries.limit > 1) {
+          countPages = Math.ceil(wistListResponsePagination.length / queries.limit)
+        }
+        if (page) {
+          pageInput = page
+        }
+        if (pageInput <= countPages) {
+          wishListResponse = await db.WishList.findAll({
+            nest: true,
+            where: {
+              userID: id,
+            },
+            include: {
+              model: db.Project,
+              include: {
+                model: db.Location,
+                attributes: ['id', 'name']
+              }
+            },
+            ...queries,
+          })
+          if (wishListResponse.length !== 0) {
+            for (let i = 0; i < wishListResponse.length; i++) {
+              const wishList = {};
+              wishList.id = wishListResponse[i].Project.id;
+              wishList.name = wishListResponse[i].Project.name;
+              wishList.thumbnailPathUrl = wishListResponse[i].Project.thumbnailPathUrl;
+              wishList.status = wishListResponse[i].Project.status;
+              wishList.buildingStatus = wishListResponse[i].Project.buildingStatus;
+              wishList.reservationDate = wishListResponse[i].Project.reservationDate;
+              wishList.reservationPrice = wishListResponse[i].Project.reservationPrice;
+              wishList.openDate = wishListResponse[i].Project.openDate;
+              wishList.closeDate = wishListResponse[i].Project.closeDate;
+              wishList.features = wishListResponse[i].Project.features.split(',');
+              wishList.attractions = wishListResponse[i].Project.attractions.split(',');
+              wishList.locationID = wishListResponse[i].Project.Location.id;
+              wishList.location = wishListResponse[i].Project.Location.name;
+              if (wishList.id) {
+                response.push(wishList);
+              }
+            }
+          }
+        }
+      }
       resolve({
-        err : wishlist ? 0 : 1,
-        mess : wishlist ? wishlist : "Can not view wish list"
+        err: response.length !== 0 ? 0 : 1,
+        mess: !userResponse ?
+          `User (${id}) does not exist!`
+          : response.length === 0 ? `Can not find any Project of User (${id})'s WishList`
+            : `All Projects of User (${id})'s WishList`,
+        data: response,
+        count: response.length,
+        countPages: countPages,
+        page: pageInput
       })
     } catch (err) {
       console.log(err);
@@ -347,29 +412,30 @@ export const viewwishlist = ({id}) => {
   });
 };
 
-export const deletewishlist = ({id,list}) => {
+export const deletewishlist = ({ id, list }) => {
   return new Promise(async (resolve, reject) => {
     try {
       let listdb = list.split(',')
       let array = []
       for (let i = 0; i < listdb.length; i++) {
         const wishlist = await db.WishList.findOne({
-          where : {
-            userID : id,
-            projectID : listdb[i]
+          where: {
+            userID: id,
+            projectID: listdb[i]
           }
         })
-      array.push(wishlist.id)
-        
+        if(wishlist){
+        array.push(wishlist.id)
+        }
       }
       await db.WishList.destroy({
-        where : {
-          id : array
+        where: {
+          id: array
         }
       })
       resolve({
-        err : array ? 0 : 1,
-        mess : array ? "Delete project from wishlist success" : "Can not delete project from wishlist"
+        err: array ? 0 : 1,
+        mess: array ? "Delete project from wishlist success" : "Can not delete project from wishlist"
       })
     } catch (err) {
       console.log(err);

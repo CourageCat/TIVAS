@@ -1152,6 +1152,8 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
 export const updateOrdering = ({id,ordering}) => {
     return new Promise(async (resolve, reject) => {
         try {
+            console.log((id));
+            console.log(ordering);
             await db.Project.update({
                 ordering
             },{
