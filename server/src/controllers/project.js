@@ -233,3 +233,8 @@ export const updateReservationInfo = async (req, res) => {
 export const getAllProjectReservation = async (req, res) => {
   const response = await services.getAllProjectReservation;
 };
+
+export const updateOrdering = async (req, res) => {
+  const response = await services.updateOrdering(req.body);
+  return res.status(200).json(response);
+};

@@ -17,6 +17,7 @@ module.exports = (sequelize, DataTypes) => {
       //   foreignKey: 'userID',
       // });
       User.hasMany(models.TimeShare, {foreignKey: 'userID', ondelete: 'cascade', hooks: true});
+      User.hasMany(models.WishList, {foreignKey: 'userID', ondelete: 'cascade', hooks: true});
     }
   }
   User.init(

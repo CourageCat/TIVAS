@@ -39,6 +39,9 @@ module.exports = {
       closeDate: {
         type: Sequelize.DATE
       },
+      ordering: {
+        type: Sequelize.INTEGER
+      },
       thumbnailPathUrl: {
         type: Sequelize.STRING
       },

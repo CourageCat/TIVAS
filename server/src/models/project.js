@@ -15,6 +15,7 @@ module.exports = (sequelize, DataTypes) => {
       Project.hasMany(models.ReservationTicket, {foreignKey: 'projectID', ondelete: 'cascade', hooks: true});
       Project.belongsTo(models.Location, {foreignKey: 'locationID'});
       Project.hasMany(models.TimeShareDate, {foreignKey: 'projectID', ondelete: 'cascade', hooks: true});
+      Project.hasMany(models.WishList, {foreignKey: 'projectID', ondelete: 'cascade', hooks: true});
       // define association here
     }
   }
@@ -29,6 +30,7 @@ module.exports = (sequelize, DataTypes) => {
     reservationDate: DataTypes.DATE,
     openDate: DataTypes.DATE,
     closeDate: DataTypes.DATE,
+    ordering: DataTypes.INTEGER,
     thumbnailPathUrl: DataTypes.STRING,
     thumbnailPathName: DataTypes.STRING,
     locationID: DataTypes.INTEGER,
