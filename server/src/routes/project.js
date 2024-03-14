@@ -68,13 +68,12 @@ router.put("/updateReservationInfo/:id", controllers.updateReservationInfo)
 
 router.put("/getAllProjectReservation", controllers.getAllProjectReservation)
 
+router.put("/updateOrdering", controllers.updateOrdering)
+
 router.get(
   "/:id",
   controllers.getDetailsProject
 )
-
-
-
 
 
 export default router;

@@ -70,4 +70,17 @@ export const unBanUser = async (req, res) => {
   return res.status(200).json(response);
 };
 
+export const addWishlist = async (req, res) => {
+  const response = await services.addWishlist(req.body);
+  return res.status(200).json(response);
+};
 
+export const viewwishlist = async (req, res) => {
+  const response = await services.viewwishlist(req.query);
+  return res.status(200).json(response);
+};
+
+export const deletewishlist = async (req, res) => {
+  const response = await services.deletewishlist(req.query);
+  return res.status(200).json(response);
+};
