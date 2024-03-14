@@ -299,3 +299,81 @@ export const unBanUser = ({ id }) => {
     }
   });
 };
+
+export const addWishlist = ({ id ,list }) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let listdb = list.split(',')
+      let array = []     
+      listdb.forEach((item) => {
+        array.push({userID:id, projectID:item})
+      });
+      const wishlist = await db.WishList.bulkCreate(array,{
+          returning : true
+      })
+      resolve({
+        err : wishlist ? 0 : 1,
+        mess : wishlist ?  "Add to wishlist success" : "Can not add project to wishlist",
+        data : wishlist ? wishlist : ""
+      })
+    } catch (err) {
+      console.log(err);
+      reject(err);
+    }
+  });
+};
+
+export const viewwishlist = ({id}) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const wishlist = await db.WishList.findAll({
+        nest: true,
+        where: {
+            userID : id,
+        },
+        include: {
+            model: db.Project,
+            attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID']
+        },
+    })
+      resolve({
+        err : wishlist ? 0 : 1,
+        mess : wishlist ? wishlist : "Can not view wish list"
+      })
+    } catch (err) {
+      console.log(err);
+      reject(err);
+    }
+  });
+};
+
+export const deletewishlist = ({id,list}) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let listdb = list.split(',')
+      let array = []
+      for (let i = 0; i < listdb.length; i++) {
+        const wishlist = await db.WishList.findOne({
+          where : {
+            userID : id,
+            projectID : listdb[i]
+          }
+        })
+      array.push(wishlist.id)
+        
+      }
+      await db.WishList.destroy({
+        where : {
+          id : array
+        }
+      })
+      resolve({
+        err : array ? 0 : 1,
+        mess : array ? "Delete project from wishlist success" : "Can not delete project from wishlist"
+      })
+    } catch (err) {
+      console.log(err);
+      reject(err);
+    }
+  });
+};
