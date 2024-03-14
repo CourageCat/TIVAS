@@ -303,17 +303,18 @@ export const unBanUser = ({ id }) => {
 export const addWishlist = ({ id ,list }) => {
   return new Promise(async (resolve, reject) => {
     try {
+      let listdb = list.split(',')
       let array = []     
-      list.forEach((item) => {
+      listdb.forEach((item) => {
         array.push({userID:id, projectID:item})
       });
       const wishlist = await db.WishList.bulkCreate(array,{
           returning : true
       })
       resolve({
-        err : wishlist ? 1 : 0,
-        mess : wishlist ? "Can not add project to wishlist" : "Add to wishlist success",
-        data : wishlist ? "" : wishlist
+        err : wishlist ? 0 : 1,
+        mess : wishlist ?  "Add to wishlist success" : "Can not add project to wishlist",
+        data : wishlist ? wishlist : ""
       })
     } catch (err) {
       console.log(err);
@@ -326,10 +327,15 @@ export const viewwishlist = ({id}) => {
   return new Promise(async (resolve, reject) => {
     try {
       const wishlist = await db.WishList.findAll({
-        where : {
-          userID : id
-        }
-      })
+        nest: true,
+        where: {
+            userID : id,
+        },
+        include: {
+            model: db.Project,
+            attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID']
+        },
+    })
       resolve({
         err : wishlist ? 0 : 1,
         mess : wishlist ? wishlist : "Can not view wish list"
@@ -344,11 +350,13 @@ export const viewwishlist = ({id}) => {
 export const deletewishlist = ({id,list}) => {
   return new Promise(async (resolve, reject) => {
     try {
+      let listdb = list.split(',')
       let array = []
-      for (let i = 0; i < list.length; i++) {
+      for (let i = 0; i < listdb.length; i++) {
         const wishlist = await db.WishList.findOne({
           where : {
-            projectID : list[0]
+            userID : id,
+            projectID : listdb[i]
           }
         })
       array.push(wishlist.id)
