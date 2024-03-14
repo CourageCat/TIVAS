@@ -421,7 +421,6 @@ export const updateProject = ({
     })
 }
 
-
 export const searchProject = ({ page, limit, orderBy, orderType, type, ...query }) => {
     return new Promise(async (resolve, reject) => {
         try {
@@ -1142,6 +1141,29 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                             : projectResponse.status === 3 ? 
                             `Can not update reservation because Project(${id}) is on CheckPriority stage!`
                             : `Update Reservation for Project (${id}) successfully.`
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+    })
+}
+
+export const updateOrdering = ({id,ordering}) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            console.log((id));
+            console.log(ordering);
+            await db.Project.update({
+                ordering
+            },{
+                where:{
+                    id
+                }
+            })
+            resolve({
+                err : 0,
+                mess : "Update ordering successfully"
             })
         } catch (error) {
             console.log(error);
