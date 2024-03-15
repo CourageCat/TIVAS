@@ -240,67 +240,74 @@ export const createReservation = ({
             })
             const timeShareResponse = await db.TimeShare.findByPk(timeShareID);
             if (userResponse && ticketResponse && timeShareResponse) {
-                projectResponse = await db.Project.findOne({
-                    include: {
-                        model: db.TypeOfProject,
-                        required: true,
+                if (!ticketResponse.refundDate && ticketResponse.status !== 2) {
+                    projectResponse = await db.Project.findOne({
                         include: {
-                            model: db.TypeRoom,
+                            model: db.TypeOfProject,
                             required: true,
                             include: {
-                                model: db.TimeShare,
+                                model: db.TypeRoom,
                                 required: true,
-                                where: {
-                                    id: timeShareID,
+                                include: {
+                                    model: db.TimeShare,
+                                    required: true,
+                                    where: {
+                                        id: timeShareID,
+                                    }
                                 }
                             }
                         }
-                    }
-                })
-                if (projectResponse.status === 2) {
-                    timeShareBelongsToProject = (projectResponse.id === ticketResponse.projectID);
-                    if (timeShareBelongsToProject === true) {
-                        //if (ticketResponse.status === 1) {
-                        userTicketResponse = await db.ReservationTicket.findOne({
-                            where: {
-                                code,
-                                userID,
-                            }
-                        })
-                        if (userTicketResponse) {
-                            ticketDuplicated = await db.ReservationTicket.findOne({
+                    })
+                    if (projectResponse.status === 2) {
+                        timeShareBelongsToProject = (projectResponse.id === ticketResponse.projectID);
+                        if (timeShareBelongsToProject === true) {
+                            //if (ticketResponse.status === 1) {
+                            userTicketResponse = await db.ReservationTicket.findOne({
                                 where: {
                                     code,
-                                    timeShareID,
+                                    userID,
                                 }
                             })
-                            if (!ticketDuplicated) {
-                                userUsedTicket = await db.ReservationTicket.findOne({
+                            if (userTicketResponse) {
+                                ticketDuplicated = await db.ReservationTicket.findOne({
                                     where: {
-                                        userID: ticketResponse.userID,
+                                        code,
                                         timeShareID,
                                     }
                                 })
-                                if (!userUsedTicket) {
-                                    reservationResponse = await db.ReservationTicket.update({
-                                        timeShareID,
-                                    }, {
+                                if (!ticketDuplicated) {
+                                    userUsedTicket = await db.ReservationTicket.findOne({
                                         where: {
-                                            code,
+                                            userID: ticketResponse.userID,
+                                            timeShareID,
                                         }
                                     })
-                                    await db.ReservationTicket.update({
-                                        bookingDate: userTicketResponse.updatedAt,
-                                    }, {
-                                        where: {
-                                            code,
-                                        }
-                                    })
+                                    if (!userUsedTicket) {
+                                        reservationResponse = await db.ReservationTicket.update({
+                                            timeShareID,
+                                        }, {
+                                            where: {
+                                                code,
+                                            }
+                                        })
+                                        const reservationTicket = await db.ReservationTicket.findOne({
+                                            where: {
+                                                code,
+                                            }
+                                        })
+                                        await db.ReservationTicket.update({
+                                            bookingDate: reservationTicket.updatedAt,
+                                        }, {
+                                            where: {
+                                                code,
+                                            }
+                                        })
 
+                                    }
                                 }
                             }
+                            //}
                         }
-                        //}
                     }
                 }
             }
@@ -313,17 +320,19 @@ export const createReservation = ({
                         `TimeShare (${timeShareID}) does not exist!`
                         : !ticketResponse ?
                             `Ticket (${code}) does not exist!`
-                            : projectResponse.status !== 2 ?
-                                `Project (${projectResponse.id}) is not open for reservation!`
-                                : !timeShareBelongsToProject ?
-                                    `TimeShare (${timeShareID}) does not belong to Project which is registerd in Ticket (${code})`
-                                    : !userTicketResponse ?
-                                        `Ticket (${code}) does not belong to User (${userID})!`
-                                        : ticketDuplicated ?
-                                            `TimeShare (${timeShareID}) has already registerd with the ticket (${code})!`
-                                            : userUsedTicket ?
-                                                `Can not use two or more tickets to register one TimeShare! (User (${ticketResponse.userID}) has already used one ticket to register TimeShare(${timeShareID}))`
-                                                : 'Create successfully.',
+                            : ticketResponse.refundDate || ticketResponse.status === 2 ?
+                                `Ticket (${code}) has been used in another open sale!`
+                                : projectResponse.status !== 2 ?
+                                    `Project (${projectResponse.id}) is not open for booking!`
+                                    : !timeShareBelongsToProject ?
+                                        `TimeShare (${timeShareID}) does not belong to Project which is registerd in Ticket (${code})`
+                                        : !userTicketResponse ?
+                                            `Ticket (${code}) does not belong to User (${userID})!`
+                                            : ticketDuplicated ?
+                                                `TimeShare (${timeShareID}) has already registerd with the ticket (${code})!`
+                                                : userUsedTicket ?
+                                                    `Can not use two or more tickets to register one TimeShare! (User (${ticketResponse.userID}) has already used one ticket to register TimeShare(${timeShareID}))`
+                                                    : 'Create successfully.',
             })
         }
         catch (error) {
@@ -387,6 +396,7 @@ export const createReservation = ({
 export const checkPriority = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let ticketResponse = [];
             const project = await db.Project.update({
                 status: 3
             }, {
@@ -394,136 +404,170 @@ export const checkPriority = (id) => {
                     id
                 }
             })
-
-            // Fetch records that need to be updated
-            const timeSharesToUpdate = await db.TimeShare.findAll({
-                include: [
-                    {
-                        model: db.TypeRoom,
-                        required: true,
-                        include: {
-                            model: db.TypeOfProject,
-                            required: true,
-                            as: 'TypeOfProject',
-                            where: {
-                                projectID: id,
-                            },
-                        },
-                    },
-                ],
-            });
-
-            // Perform updates in memory
-            timeSharesToUpdate.forEach((timeShare) => {
-                timeShare.saleStatus = 0;
-            });
-
-            // Save changes back to the database
-            await Promise.all(timeSharesToUpdate.map((timeShare) => timeShare.save()));
-
-            const ticketResponse = await db.ReservationTicket.findAll({
-                include: [
-                    {
-                        model: db.User,
-                        attributes: ['id', 'username', 'email']
-                    },
-                    {
-                        model: db.Project,
-                        attributes: ['id', 'name']
-                    },
-                    {
-                        model: db.TimeShare,
-                        atributes: ['id', 'startDate', 'endDate'],
-                        include: {
-                            model: db.TypeRoom,
-                            attributes: ['id', 'name']
-                        }
-                    },
-                ],
+            const timeShareDatesResponse = await db.TimeShareDate.findOne({
                 where: {
                     projectID: id,
-                    timeShareID: {
-                        [Op.ne]: null
-                    },
-                    status: 1
+                    status: 0,
                 }
             })
-            const result = Object.groupBy(ticketResponse, ({ timeShareID }) => timeShareID)
-            let count1 = 0
-            for (let properties in result) {
-                count1 = count1 + 1
-            }
-            for (let i = 0; i < count1; i++) {
-                const quantityTimeshare = await db.TimeShare.findByPk(Object.getOwnPropertyNames(result)[i])
-                for (let x = 0; x < quantityTimeshare.quantity; x++) {
-                    const reservation = result[Object.getOwnPropertyNames(result)[i]][x]
-                    if (reservation) {
-                        await db.ReservationTicket.update({
-                            status: 2
-                        }, {
-                            where: {
-                                id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.id
-                            }
-                        })
-                        await db.TimeShare.decrement({
-                            quantity: 1
-                        }, {
-                            where: {
-                                id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.timeShareID
-                            }
-                        })
-                        const timeShare = reservation.TimeShare;
-                        const user = reservation.User
-                        const project = reservation.Project
-                        const startDateDB = new Date(timeShare.updatedAt);
-                        const endDateDB = timeShare.updatedAt;
-                        endDateDB.setDate(endDateDB.getDate() + 7);
-                        await db.Booking.create({
-                            startDate: startDateDB,
-                            endDate: endDateDB,
-                            status: 0,
-                            priceBooking: timeShare.price - reservation.reservationPrice,
-                            reservationTicketID: reservation.id,
-                        })
-                        let transporter = nodemailer.createTransport({
-                            service: "gmail",
-                            auth: {
-                                user: process.env.GOOGE_APP_EMAIL,
-                                pass: process.env.GOOGLE_APP_PASSWORD,
+            if (timeShareDatesResponse) {
+                // Fetch records that need to be updated
+                const timeSharesToUpdate = await db.TimeShare.findAll({
+                    include: [
+                        {
+                            model: db.TypeRoom,
+                            required: true,
+                            include: {
+                                model: db.TypeOfProject,
+                                required: true,
+                                as: 'TypeOfProject',
+                                where: {
+                                    projectID: id,
+                                },
                             },
-                        });
-                        const emailTemplatePath = "src/template/EmailWinner/index.ejs";
-                        const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
-
-                        const data = {
-                            email: user.email,
-                            projectName: project.name,
-                            typeRoomName: timeShare.TypeRoom.name,
-                            startDate: formatDate(timeShare.startDate),
-                            endDate: formatDate(timeShare.endDate),
-                            reservationPrice: reservation.reservationPrice,
-                            timeSharePrice: timeShare.price,
-                            bookingPrice: timeShare.price - reservation.reservationPrice
-                        };
-
-                        const renderedHtml = ejs.render(emailTemplate, data);
-
-                        let mailOptions = {
-                            from: "Tivas",
-                            to: `${user.email}`,
-                            subject: "Confirm received email",
-                            html: renderedHtml,
-                        };
-
-                        transporter.sendMail(mailOptions, function (error, info) {
-                            if (error) {
-                                console.log(error);
-                            } else {
-                                console.log("Email sent: " + info.response);
+                        },
+                        {
+                            model: db.TimeShareDate,
+                            where: {
+                                id: timeShareDatesResponse.id
                             }
-                        });
-                    }
+                        }
+                    ],
+                });
 
+                if (timeSharesToUpdate.length !== 0) {
+                    // Perform updates in memory
+                    timeSharesToUpdate.forEach((timeShare) => {
+                        timeShare.saleStatus = 0;
+                    });
+
+                    // Save changes back to the database
+                    await Promise.all(timeSharesToUpdate.map((timeShare) => timeShare.save()));
+                }
+
+                ticketResponse = await db.ReservationTicket.findAll({
+                    include: [
+                        {
+                            model: db.User,
+                            attributes: ['id', 'username', 'email']
+                        },
+                        {
+                            model: db.Project,
+                            attributes: ['id', 'name']
+                        },
+                        {
+                            required: true,
+                            model: db.TimeShare,
+                            atributes: ['id', 'startDate', 'endDate'],
+                            include: [
+                                {
+                                    model: db.TypeRoom,
+                                    attributes: ['id', 'name']
+                                },
+                                {
+                                    required: true,
+                                    model: db.TimeShareDate,
+                                    where: {
+                                        id: timeShareDatesResponse.id
+                                    }
+                                },
+                            ]
+                        },
+                    ],
+                    where: {
+                        timeShareID: {
+                            [Op.ne]: null
+                        },
+                        status: 1
+                    }
+                })
+                console.log(ticketResponse[0]);
+                if (ticketResponse.length !== 0) {
+                    const result = Object.groupBy(ticketResponse, ({ timeShareID }) => timeShareID)
+                    let count1 = 0
+                    for (let properties in result) {
+                        count1 = count1 + 1
+                    }
+                    for (let i = 0; i < count1; i++) {
+                        const quantityTimeshare = await db.TimeShare.findByPk(Object.getOwnPropertyNames(result)[i])
+                        for (let x = 0; x < quantityTimeshare.quantity; x++) {
+                            const reservation = result[Object.getOwnPropertyNames(result)[i]][x]
+                            if (reservation) {
+                                await db.ReservationTicket.update({
+                                    status: 2
+                                }, {
+                                    where: {
+                                        id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.id
+                                    }
+                                })
+                                await db.TimeShare.decrement({
+                                    quantity: 1
+                                }, {
+                                    where: {
+                                        id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.timeShareID
+                                    }
+                                })
+                                const timeShare = reservation.TimeShare;
+                                const user = reservation.User
+                                const project = reservation.Project
+                                const startDateDB = new Date(timeShare.updatedAt);
+                                const endDateDB = timeShare.updatedAt;
+                                endDateDB.setDate(endDateDB.getDate() + 7);
+                                await db.Booking.create({
+                                    startDate: startDateDB,
+                                    endDate: endDateDB,
+                                    status: 0,
+                                    priceBooking: timeShare.price - reservation.reservationPrice,
+                                    reservationTicketID: reservation.id,
+                                })
+                                let transporter = nodemailer.createTransport({
+                                    service: "gmail",
+                                    auth: {
+                                        user: process.env.GOOGE_APP_EMAIL,
+                                        pass: process.env.GOOGLE_APP_PASSWORD,
+                                    },
+                                });
+                                const emailTemplatePath = "src/template/EmailWinner/index.ejs";
+                                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+
+                                const data = {
+                                    email: user.email,
+                                    projectName: project.name,
+                                    typeRoomName: timeShare.TypeRoom.name,
+                                    startDate: formatDate(timeShare.startDate),
+                                    endDate: formatDate(timeShare.endDate),
+                                    reservationPrice: reservation.reservationPrice,
+                                    timeSharePrice: timeShare.price,
+                                    bookingPrice: timeShare.price - reservation.reservationPrice
+                                };
+
+                                const renderedHtml = ejs.render(emailTemplate, data);
+
+                                let mailOptions = {
+                                    from: "Tivas",
+                                    to: `${user.email}`,
+                                    subject: "Confirm received email",
+                                    html: renderedHtml,
+                                };
+
+                                transporter.sendMail(mailOptions, function (error, info) {
+                                    if (error) {
+                                        console.log(error);
+                                    } else {
+                                        console.log("Email sent: " + info.response);
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    await db.TimeShareDate.update({
+                        status: 1
+                    }, {
+                        where: {
+                            projectID: id,
+                            status: 0
+                        }
+                    })
                 }
             }
             // const {count , rows} = await db.ReservationTicket.findAndCountAll({
@@ -533,8 +577,8 @@ export const checkPriority = (id) => {
             // })
 
             resolve({
-                err: (ticketResponse && ticketResponse.length !== 0) ? 0 : 1,
-                mess: (ticketResponse && ticketResponse.length !== 0) ? "Success" : "Fail (No ReservationTickets to check in DB)"
+                err: (ticketResponse.length !== 0) ? 0 : 1,
+                mess: (ticketResponse.length !== 0) ? "Success" : "Fail (No ReservationTickets to check in DB)"
             })
         } catch (error) {
             console.log(error);

@@ -28,6 +28,11 @@ router.get(
 )
 
 router.get(
+    "/getAllByAdmin/:projectID",
+    controllers.getAllTimeShareOfProjectByAdmin,
+)
+
+router.get(
     "/:id",
     controllers.getDetailsTimeShare,
 )

@@ -48,7 +48,7 @@ export const createNewTimeShare = async (req, res) => {
 export const getAllTimeShare = async (req, res) => {
     try {
         const response = await services.getAllTimeShare(req.query);
-        res.status(200).json(response);
+        return res.status(200).json(response);
     } catch (error) {
         console.log(error);
         return internalServerError("Error at Server Side!", res);
@@ -62,11 +62,17 @@ export const getAllTimeShareOfProject = async (req, res) => {
             return badRequest("projectID is required an INTEGER!", res);
         }
         const response = await services.getAllTimeShareOfProject(projectID, req.query);
-        res.status(200).json(response);
+        return res.status(200).json(response);
     } catch (error) {
         console.log(error);
         return internalServerError("Error at Server Side!", res);
     }
+}
+
+export const getAllTimeShareOfProjectByAdmin = async (req, res) => {
+    const { projectID } = req.params;
+    const response = await services.getAllTimeShareOfProjectByAdmin(projectID, req.query);
+    return res.status(200).json(response);
 }
 
 export const getDetailsTimeShare = async (req, res) => {
