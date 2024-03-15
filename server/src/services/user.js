@@ -412,30 +412,25 @@ export const viewwishlist = ({ id, page, limit, orderBy, orderType }) => {
   });
 };
 
-export const deletewishlist = ({ id, list }) => {
+export const deletewishlist = ({ id, projectID }) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let listdb = list.split(',')
-      let array = []
-      for (let i = 0; i < listdb.length; i++) {
-        const wishlist = await db.WishList.findOne({
-          where: {
-            userID: id,
-            projectID: listdb[i]
-          }
-        })
-        if(wishlist){
-        array.push(wishlist.id)
-        }
-      }
-      await db.WishList.destroy({
+      const wishList = await db.WishList.findOne({
         where: {
-          id: array
+          userID: id,
+          projectID,
         }
       })
+      if (wishList) {
+        await db.WishList.destroy({
+          where: {
+            id: projectID
+          }
+        })
+      }
       resolve({
-        err: array ? 0 : 1,
-        mess: array ? "Delete project from wishlist success" : "Can not delete project from wishlist"
+        err: wishList ? 0 : 1,
+        mess: !wishList ? `Project (${projectID}) does not belong to User (${id})!` : "Delete project from wishlist successfully."
       })
     } catch (err) {
       console.log(err);
