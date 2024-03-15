@@ -232,7 +232,7 @@ export const getAllWithType = ({ page, limit, orderType, orderBy }) => {
                         project.attractions = projectResponse[i].attractions;
                         project.location = projectResponse[i].Location.name;
                         project.typeOfProject = [];
-                        for(let j = 0; j < projectResponse[i].TypeOfProjects.length; j++){
+                        for (let j = 0; j < projectResponse[i].TypeOfProjects.length; j++) {
                             project.typeOfProject.push(projectResponse[i].TypeOfProjects[j].Type.name)
                         }
                         response.push(project);
@@ -334,7 +334,7 @@ export const updateProject = ({
             //Check TypeRoom is existed in DB
             let projectResult = await db.Project.findByPk(id);
             if (projectResult) {
-                
+
                 if (projectResult.name !== name) {
                     nameDuplicated = await db.Project.findOne({
                         where: {
@@ -573,9 +573,9 @@ export const searchNameAndLocationProject = (info, limit) => {
                 include: {
                     model: db.Location,
                     attributes: ['id', 'name'],
-                    where: {
-                        name: { [Op.substring]: info }
-                    }
+                },
+                where: {
+                    name: { [Op.substring]: info }
                 },
                 limit,
             })
@@ -592,7 +592,7 @@ export const searchNameAndLocationProject = (info, limit) => {
                 },
                 limit,
             })
-            if (bestMatch.length !== 0 && projectByNameResponse.length !== 0 && projectByLocationResponse.length !== 0) {
+            if (bestMatch.length !== 0 || projectByNameResponse.length !== 0 || projectByLocationResponse.length !== 0) {
                 response = {};
                 response.bestMatch = bestMatch
                 response.ProjectName = projectByNameResponse;
@@ -661,17 +661,14 @@ export const getDetailsProject = (id) => {
                     {
                         model: db.TypeOfProject,
                         attributes: ['id'],
-                        include: {
+                        where: {
+                            projectID: id,
+                        },
+                        include: [
+                            {
                             model: db.TypeRoom,
                             attributes: ['id', 'name', 'bedrooms', 'bathrooms', 'persons', 'size', 'bedTypes', 'amenities'],
                             include: [
-                                {
-                                    model: db.TypeOfProject,
-                                    attributes: [],
-                                    where: {
-                                        projectID: id,
-                                    },
-                                },
                                 {
                                     model: db.Image,
                                     attributes: ['id', 'pathUrl'],
@@ -679,6 +676,11 @@ export const getDetailsProject = (id) => {
                                 },
                             ],
                         },
+                        {
+                            model: db.Type,
+                            attributes: ['name'],
+                        },
+                    ],
                         order: [['id', 'ASC']],
                     },
                     {
@@ -690,12 +692,16 @@ export const getDetailsProject = (id) => {
                         nest: true,
                         model: db.Location,
                         attributes: ['id', 'name']
-                    }
+                    },
                 ],
             },
             );
 
             if (projectResponse) {
+                const type = [];
+                for(let i = 0; i < projectResponse.TypeOfProjects.length; i++){
+                    type.push(projectResponse.TypeOfProjects[i].Type.name);
+                }
                 response.Project = {
                     id: projectResponse.id,
                     name: projectResponse.name,
@@ -704,6 +710,7 @@ export const getDetailsProject = (id) => {
                     location: projectResponse.Location.name,
                     features: projectResponse.features?.split(','),
                     attractions: projectResponse.attractions?.split(','),
+                    type: type,
                     saleStatus: projectResponse.saleStatus,
                     status: projectResponse.status,
                     reservationPrice: projectResponse.reservationPrice,
@@ -773,7 +780,7 @@ export const getTypeOfProject = (id) => {
         try {
             let typeResponse = [];
             const projectResponse = await db.Project.findByPk(id);
-            if(projectResponse){
+            if (projectResponse) {
                 typeResponse = await db.Type.findAll({
                     attributes: ['name'],
                     include: {
@@ -788,10 +795,10 @@ export const getTypeOfProject = (id) => {
             resolve({
                 err: typeResponse.length !== 0 ? 0 : 1,
                 message: !projectResponse ?
-                `Project (${id}) does not exist!`
-                : typeResponse.length === 0 ?
-                `Can not find any type of project (${id})`
-                : `Type of project (${id}).`,
+                    `Project (${id}) does not exist!`
+                    : typeResponse.length === 0 ?
+                        `Can not find any type of project (${id})`
+                        : `Type of project (${id}).`,
                 data: typeResponse,
             })
         } catch (error) {
@@ -930,6 +937,12 @@ export const openBooking = (id) => {
                             id
                         }
                     })
+                    const timeShareDatesResponse = await db.TimeShareDate.findOne({
+                        where: {
+                            projectID: id,
+                            status: 0,
+                        }
+                    })
                     // Fetch records that need to be updated
                     const timeSharesToUpdate = await db.TimeShare.findAll({
                         include: [
@@ -945,16 +958,24 @@ export const openBooking = (id) => {
                                     },
                                 },
                             },
+                            {
+                                model: db.TimeShareDate,
+                                where: {
+                                    id: timeShareDatesResponse.id
+                                }
+                            }
                         ],
                     });
 
-                    // Perform updates in memory
-                    timeSharesToUpdate.forEach((timeShare) => {
-                        timeShare.saleStatus = 1;
-                    });
+                    if (timeSharesToUpdate.length !== 0) {
+                        // Perform updates in memory
+                        timeSharesToUpdate.forEach((timeShare) => {
+                            timeShare.saleStatus = 1;
+                        });
 
-                    // Save changes back to the database
-                    await Promise.all(timeSharesToUpdate.map((timeShare) => timeShare.save()));
+                        // Save changes back to the database
+                        await Promise.all(timeSharesToUpdate.map((timeShare) => timeShare.save()));
+                    }
                     message.push("This project is open now")
                 } else {
                     message.push(`Project (${id}) is already opened for booking!`)
@@ -1029,7 +1050,16 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
             //const message = [];
             //const dateNow = new Date().toDateString()
             if (projectResponse) {
-                if (projectResponse.status === 0) {
+                if (projectResponse.status === 0 || projectResponse.status === 3) {
+                    if (projectResponse.status === 3) {
+                        await db.Project.update({
+                            status: 0
+                        }, {
+                            where: {
+                                id,
+                            }
+                        })
+                    }
                     await db.Project.update({
                         reservationDate: convertDate(reservationDate),
                         reservationPrice,
@@ -1047,7 +1077,7 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                         }
                     })
                     console.log(timeShareDatesResponse);
-                    if(timeShareDatesResponse){
+                    if (timeShareDatesResponse) {
                         await db.TimeShareDate.update({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
@@ -1056,9 +1086,10 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                         }, {
                             where: {
                                 projectID: id,
+                                status: 0,
                             }
                         })
-                    }else{
+                    } else {
                         await db.TimeShareDate.create({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
@@ -1131,15 +1162,13 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                 }
             }
             resolve({
-                err: !(projectResponse?.status === 1 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse?.reservationPrice !== reservationPrice)) && !(projectResponse?.status === 2 && (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() || projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse?.reservationPrice !== reservationPrice)) && projectResponse.status !== 3 ? 0 : 1,
+                err: !(projectResponse?.status === 1 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse?.reservationPrice !== reservationPrice)) && !(projectResponse?.status === 2 && (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() || projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse?.reservationPrice !== reservationPrice)) ? 0 : 1,
                 message: !projectResponse ?
                     `Project (${id}) does not exist!` :
                     projectResponse.status === 1 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
                         `Can not update Reservation Date or Reservation Price because Project(${id}) is already opened for reservation!`
                         : projectResponse.status === 2 && (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() || projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
                             `Can not update Reservation Date, Reservation Price, Open date or Close date because Project(${id}) is already opened for booking!`
-                            : projectResponse.status === 3 ? 
-                            `Can not update reservation because Project(${id}) is on CheckPriority stage!`
                             : `Update Reservation for Project (${id}) successfully.`
             })
         } catch (error) {
@@ -1149,21 +1178,21 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
     })
 }
 
-export const updateOrdering = ({id,ordering}) => {
+export const updateOrdering = ({ id, ordering }) => {
     return new Promise(async (resolve, reject) => {
         try {
             console.log((id));
             console.log(ordering);
             await db.Project.update({
                 ordering
-            },{
-                where:{
+            }, {
+                where: {
                     id
                 }
             })
             resolve({
-                err : 0,
-                mess : "Update ordering successfully"
+                err: 0,
+                mess: "Update ordering successfully"
             })
         } catch (error) {
             console.log(error);
