@@ -30,4 +30,5 @@ router.post("/unbanuser/", controllers.unBanUser);
 router.post("/addwishlist", controllers.addWishlist)
 router.get("/viewwishlist", controllers.viewwishlist)
 router.delete("/deletewishlist", controllers.deletewishlist)
+router.get("/checkprojectwishlist", controllers.checkProjectWishlist)
 export default router;
