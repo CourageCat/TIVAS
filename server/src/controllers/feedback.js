@@ -17,7 +17,7 @@ export const updateShowFeedBack = async(req, res) => {
     return res.status(200).json(response);
 }
 
-export const ShowFeedBackToUser = async(req, res) => {
+export const showFeedBackToUser = async(req, res) => {
     const response = await db.FeedBack.showFeedBackToUser();
     return res.status(200).json(response);
 }
