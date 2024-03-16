@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import ejs from "ejs";
 import db from "../models";
 import { pagination } from "../middlewares/pagination";
+import { use } from "passport";
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const fs = require("fs");
@@ -429,3 +430,35 @@ export const deletewishlist = ({ id, projectID }) => {
     }
   });
 };
+
+export const checkProjectWishlist = ({id, projectID}) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let wishListResponse;
+      const userResponse = await db.User.findByPk(id);
+      const projectResponse = await db.Project.findByPk(projectID);
+      if(userResponse && projectResponse){
+        wishListResponse = await db.WishList.findOne({
+          where:{
+            userID: id,
+            projectID,
+          }
+        })
+      }
+      resolve({
+        err: wishListResponse ? 0 : 1,
+        message: !userResponse ?
+        `User (${id}) does not exist!` 
+        : !projectResponse ?
+        `Project (${projectID}) does not exist!`
+        : !wishListResponse ?
+        `Project (${projectID}) does not belong to User (${id})'s wishlist`
+        : `Project (${projectID}) belongs to User (${id})'s wishlist`,
+        data: !wishListResponse ? false : true
+      })
+    } catch (error) {
+      console.log(error);
+      reject(error);
+    }
+  })
+}

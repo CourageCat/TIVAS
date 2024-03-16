@@ -84,3 +84,8 @@ export const deletewishlist = async (req, res) => {
   const response = await services.deletewishlist(req.query);
   return res.status(200).json(response);
 };
+
+export const checkProjectWishlist = async (req, res) => {
+  const response = await services.checkProjectWishlist(req.body);
+  return res.status(200).json(response);
+}
