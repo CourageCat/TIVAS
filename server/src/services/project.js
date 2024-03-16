@@ -574,7 +574,7 @@ export const searchNameAndLocationProject = (info, limit) => {
                     model: db.Location,
                     attributes: ['id', 'name'],
                 },
-                where: {
+                where:{
                     name: { [Op.substring]: info }
                 },
                 limit,
