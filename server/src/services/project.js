@@ -574,7 +574,7 @@ export const searchNameAndLocationProject = (info, limit) => {
                     model: db.Location,
                     attributes: ['id', 'name'],
                 },
-                where:{
+                where: {
                     name: { [Op.substring]: info }
                 },
                 limit,
@@ -666,21 +666,21 @@ export const getDetailsProject = (id) => {
                         },
                         include: [
                             {
-                            model: db.TypeRoom,
-                            attributes: ['id', 'name', 'bedrooms', 'bathrooms', 'persons', 'size', 'bedTypes', 'amenities'],
-                            include: [
-                                {
-                                    model: db.Image,
-                                    attributes: ['id', 'pathUrl'],
-                                    limit: 1,
-                                },
-                            ],
-                        },
-                        {
-                            model: db.Type,
-                            attributes: ['name'],
-                        },
-                    ],
+                                model: db.TypeRoom,
+                                attributes: ['id', 'name', 'bedrooms', 'bathrooms', 'persons', 'size', 'bedTypes', 'amenities'],
+                                include: [
+                                    {
+                                        model: db.Image,
+                                        attributes: ['id', 'pathUrl'],
+                                        limit: 1,
+                                    },
+                                ],
+                            },
+                            {
+                                model: db.Type,
+                                attributes: ['name'],
+                            },
+                        ],
                         order: [['id', 'ASC']],
                     },
                     {
@@ -699,9 +699,9 @@ export const getDetailsProject = (id) => {
 
             if (projectResponse) {
                 let type = "";
-                if(projectResponse.TypeOfProjects.length !== 2){
+                if (projectResponse.TypeOfProjects.length !== 2) {
                     type = projectResponse.TypeOfProjects[0].Type.name
-                }else{
+                } else {
                     type = "Villa and Hotel";
                 }
                 response.Project = {
@@ -1091,6 +1091,17 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                                 status: 0,
                             }
                         })
+                        await db.ReservationTicket.update({
+                            reservationDate: convertDate(reservationDate),
+                            reservationPrice,
+                            openDate: convertDate(openDate),
+                            closeDate: convertDate(closeDate),
+                        }, {
+                            where: {
+                                reservationDate: timeShareDatesResponse.reservationDate,
+                                closeDate: timeShareDatesResponse.closeDate,
+                            }
+                        })
                     } else {
                         await db.TimeShareDate.create({
                             reservationDate: convertDate(reservationDate),
@@ -1099,6 +1110,17 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                             closeDate: convertDate(closeDate),
                             projectID: id,
                             status: 0,
+                        })
+                        await db.ReservationTicket.update({
+                            reservationDate: convertDate(reservationDate),
+                            reservationPrice,
+                            openDate: convertDate(openDate),
+                            closeDate: convertDate(closeDate),
+                        }, {
+                            where: {
+                                reservationDate: timeShareDatesResponse.reservationDate,
+                                closeDate: timeShareDatesResponse.closeDate,
+                            }
                         })
                     }
                 } else if (projectResponse.status === 1) {
@@ -1117,6 +1139,15 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                         where: {
                             projectID: id,
                             status: 0
+                        }
+                    })
+                    await db.ReservationTicket.update({
+                        openDate: convertDate(openDate),
+                        closeDate: convertDate(closeDate),
+                    }, {
+                        where: {
+                            reservationDate: timeShareDatesResponse.reservationDate,
+                            closeDate: timeShareDatesResponse.closeDate,
                         }
                     })
                 }

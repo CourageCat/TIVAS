@@ -16,6 +16,9 @@ module.exports = (sequelize, DataTypes) => {
       });
       TimeShare.belongsTo(models.User, {
         foreignKey: 'userID'
+      });
+      TimeShare.belongsTo(models.TimeShareDate, {
+        foreignKey: 'timeShareDateID'
       })
       // define association here
     }
@@ -26,6 +29,7 @@ module.exports = (sequelize, DataTypes) => {
     endDate: DataTypes.DATE,
     saleStatus: DataTypes.INTEGER,
     quantity: DataTypes.INTEGER,
+    timeShareDateID: DataTypes.INTEGER,
     typeRoomID: DataTypes.INTEGER,
     userID: DataTypes.INTEGER
   }, {

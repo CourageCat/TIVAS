@@ -13,6 +13,23 @@ const convertDate = (dateString) => {
     return date;
 }
 
+function formatDate(date) {
+    // Ensure 'date' is a valid Date object
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
+
+    // Get day, month, and year
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are zero-based
+    const year = date.getFullYear();
+
+    // Create the formatted date string
+    const formattedDate = `${day}/${month}/${year}`;
+
+    return formattedDate;
+}
+
 export const createNewTimeShare = (
     {
         typeRoomID,
@@ -27,6 +44,7 @@ export const createNewTimeShare = (
 ) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let timeShareDateResponse;
             let errorTime;
             let projectReservated;
             const startDateDB = convertDate(startDate);
@@ -55,32 +73,41 @@ export const createNewTimeShare = (
             if (typeRoomResponse && userResponse && userResponse.RoleCode.roleName === 'Staff' && typeRoomResponse.TypeOfProject.Project.status === 0) {
                 projectReservated = typeRoomResponse.TypeOfProject.Project.reservationDate
                 if (projectReservated) {
-                    [timeShare, created] = await db.TimeShare.findOrCreate(
-                        {
+                    timeShareDateResponse = await db.TimeShareDate.findOne({
+                        where: {
+                            projectID: typeRoomResponse.TypeOfProject.Project.id,
+                            status: 0
+                        }
+                    })
+
+
+                    if (!(timeShareDateResponse?.startDate)) {
+                        await db.TimeShareDate.update({
+                            startDate: startDateDB,
+                            endDate: endDateDB,
+                        }, {
                             where: {
-                                typeRoomID,
-                                userID,
-                            },
-                            defaults: {
-                                price,
-                                startDate: startDateDB,
-                                endDate: endDateDB,
-                                userID,
-                                saleStatus: 0,
-                                typeRoomID,
-                                quantity: typeRoomResponse.quantity,
+                                id: timeShareDateResponse.id
                             }
+                        })
+                    }
+                    [timeShare, created] = await db.TimeShare.findOrCreate({
+                        where: {
+                            typeRoomID,
+                            timeShareDateID: timeShareDateResponse.id
                         },
+                        defaults: {
+                            price,
+                            startDate: startDateDB,
+                            endDate: endDateDB,
+                            userID,
+                            saleStatus: 0,
+                            typeRoomID,
+                            quantity: typeRoomResponse.quantity,
+                            timeShareDateID: timeShareDateResponse.id
+                        },
+                    }
                     )
-                    // await db.TimeShare.create({
-                    //     price,
-                    //     startDate: startDateDB,
-                    //     endDate: endDateDB,
-                    //     userID,
-                    //     saleStatus: 0,
-                    //     typeRoomID,
-                    //     quantity: typeRoomResponse.quantity,
-                    // })
                 }
             }
 
@@ -97,7 +124,7 @@ export const createNewTimeShare = (
                                 : !projectReservated ?
                                     `TypeRoom (${typeRoomID}) does not belong to Project that have reservation info!`
                                     : !created ?
-                                        `TimeShare duplicated!`
+                                        `This timeshare is created by this staff or another staff!`
                                         : "Create successfully."
             })
 
@@ -119,7 +146,16 @@ export const getAllTimeShare = ({
             let response = [];
             let pageInput = 1;
             const queries = pagination({ page, limit, orderType, orderBy });
-            const timeShareResponse = await db.TimeShare.findAll();
+            const timeShareResponse = await db.TimeShare.findAll({
+                include: {
+                    required: true,
+                    model: db.TimeShareDate,
+                    attributes: [],
+                    where: {
+                        status: 0,
+                    }
+                }
+            });
             let countPages = timeShareResponse.length !== 0 ? 1 : 0;
             if (timeShareResponse.length / queries.limit > 1) {
                 countPages = Math.ceil(timeShareResponse.length / queries.limit)
@@ -132,22 +168,32 @@ export const getAllTimeShare = ({
             if (pageInput <= countPages) {
                 response = await db.TimeShare.findAll({
                     attributes: ['id', 'price', 'startDate', 'endDate', 'saleStatus', 'createdAt'],
-                    include: {
-                        model: db.TypeRoom,
-                        attributes: ['id', 'name', 'persons'],
-                        include: {
-                            model: db.TypeOfProject,
-                            attributes: ['id'],
+                    include: [
+                        {
+                            model: db.TypeRoom,
+                            attributes: ['id', 'name', 'persons'],
                             include: {
-                                model: db.Project,
-                                attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                model: db.TypeOfProject,
+                                attributes: ['id'],
                                 include: {
-                                    model: db.Location,
-                                    attributes: ['id', 'name']
+                                    model: db.Project,
+                                    attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                    include: {
+                                        model: db.Location,
+                                        attributes: ['id', 'name']
+                                    }
                                 }
                             }
-                        }
-                    },
+                        },
+                        {
+                            required: true,
+                            model: db.TimeShareDate,
+                            attributes: [],
+                            where: {
+                                status: 0,
+                            }
+                        },
+                    ],
                     ...queries,
                 })
                 if (response.length !== 0) {
@@ -193,19 +239,30 @@ export const getAllTimeShareOfProject = (projectID, {
             if (projectResponse) {
                 const timeShareResponse = await db.TimeShare.findAll({
                     attributes: [],
-                    include: {
-                        model: db.TypeRoom,
-                        attributes: [],
-                        required: true,
-                        include: {
-                            model: db.TypeOfProject,
+                    include: [
+                        {
+                            model: db.TypeRoom,
+                            attributes: [],
+                            required: true,
+                            include: {
+                                model: db.TypeOfProject,
+                                attributes: [],
+                                where: {
+                                    projectID
+                                },
+                            }
+                        },
+                        {
+                            required: true,
+                            model: db.TimeShareDate,
                             attributes: [],
                             where: {
-                                projectID
-                            },
+                                status: 0,
+                            }
                         }
-                    }
+                    ],
                 });
+                console.log(timeShareResponse);
                 countPages = timeShareResponse.length !== 0 ? 1 : 0;
                 if (timeShareResponse.length / queries.limit > 1) {
                     countPages = Math.ceil(timeShareResponse.length / queries.limit)
@@ -221,26 +278,36 @@ export const getAllTimeShareOfProject = (projectID, {
                         raw: true,
                         nest: true,
                         attributes: ['id', 'price', 'startDate', 'endDate', 'saleStatus', 'createdAt'],
-                        include: {
-                            model: db.TypeRoom,
-                            attributes: ['id', 'name', 'persons'],
-                            required: true,
-                            include: {
-                                model: db.TypeOfProject,
-                                attributes: ['id'],
-                                where: {
-                                    projectID
-                                },
+                        include: [
+                            {
+                                model: db.TypeRoom,
+                                attributes: ['id', 'name', 'persons'],
+                                required: true,
                                 include: {
-                                    model: db.Project,
-                                    attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                    model: db.TypeOfProject,
+                                    attributes: ['id'],
+                                    where: {
+                                        projectID
+                                    },
                                     include: {
-                                        model: db.Location,
-                                        attributes: ['id', 'name']
+                                        model: db.Project,
+                                        attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                        include: {
+                                            model: db.Location,
+                                            attributes: ['id', 'name']
+                                        }
                                     }
                                 }
+                            },
+                            {
+                                required: true,
+                                model: db.TimeShareDate,
+                                attributes: [],
+                                where: {
+                                    status: 0,
+                                }
                             }
-                        },
+                        ],
                         ...queries,
                     })
 
@@ -262,6 +329,130 @@ export const getAllTimeShareOfProject = (projectID, {
                 count: response.length !== 0 ? response.length : 0,
                 page: pageInput,
                 countPages: countPages,
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+    })
+}
+
+export const getAllTimeShareOfProjectByAdmin = (projectID, {
+    page,
+    limit,
+}) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let response = {};
+            const projectResponse = await db.Project.findByPk(projectID);
+            if (projectResponse) {
+                const timeShareSold = await db.TimeShare.findAll({
+                    raw: true,
+                    nest: true,
+                    attributes: ['id', 'price', 'startDate', 'endDate', 'saleStatus', 'createdAt', 'timeShareDateID'],
+                    include: [
+                        {
+                            model: db.TypeRoom,
+                            attributes: ['id', 'name', 'persons'],
+                            required: true,
+                            include: {
+                                model: db.TypeOfProject,
+                                attributes: ['id'],
+                                where: {
+                                    projectID
+                                },
+                                include: {
+                                    model: db.Project,
+                                    attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                    include: {
+                                        model: db.Location,
+                                        attributes: ['id', 'name']
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            required: true,
+                            model: db.TimeShareDate,
+                            attributes: ['reservationDate', 'closeDate'],
+                            where: {
+                                status: 1,
+                            }
+                        }
+                    ],
+                })
+                const timeShareOnSale = await db.TimeShare.findAll({
+                    raw: true,
+                    nest: true,
+                    attributes: ['id', 'price', 'startDate', 'endDate', 'saleStatus', 'createdAt'],
+                    include: [
+                        {
+                            model: db.TypeRoom,
+                            attributes: ['id', 'name', 'persons'],
+                            required: true,
+                            include: {
+                                model: db.TypeOfProject,
+                                attributes: ['id'],
+                                where: {
+                                    projectID
+                                },
+                                include: {
+                                    model: db.Project,
+                                    attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                    include: {
+                                        model: db.Location,
+                                        attributes: ['id', 'name']
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            required: true,
+                            model: db.TimeShareDate,
+                            attributes: ['reservationDate', 'closeDate'],
+                            where: {
+                                status: 0,
+                            }
+                        }
+                    ],
+                })
+                //OnSale
+                if (timeShareOnSale.length !== 0) {
+                    const dateOnSale = formatDate(timeShareOnSale[0].TimeShareDate.reservationDate) + "-" + formatDate(timeShareOnSale[0].TimeShareDate.closeDate);
+                    response.OnSale = [];
+                    const onSale = {}
+                    onSale.OnSaleDate = dateOnSale;
+                    onSale.OnSale = timeShareOnSale;
+                    response.OnSale.push(onSale);
+                }
+
+                //Sold
+                if (timeShareSold.length !== 0) {
+                    response.Sold = [];
+                    let result = Object.groupBy(timeShareSold, ({ timeShareDateID }) => timeShareDateID)
+                    let count1 = 0
+                    for (let properties in result) {
+                        count1 = count1 + 1
+                    }
+                    console.log(result);
+                    for (let i = 0; i < count1; i++) {
+                        console.log(Object.getOwnPropertyNames(result)[i]);
+                        const timeShareDate = await db.TimeShareDate.findByPk(Object.getOwnPropertyNames(result)[i]);
+                        console.log(timeShareDate);
+                        const dateSold = formatDate(timeShareDate.reservationDate) + "-" + formatDate(timeShareDate.closeDate);
+                        const sold = {}
+                        sold.SoldDate = dateSold;
+                        sold.Sold = result[Object.getOwnPropertyNames(result)[i]];
+                        response.Sold.push(sold);
+                    }
+                }
+                //response.OnSale = 
+                //console.log(timeShareSold);
+                //console.log(timeShareOnSale);
+            }
+            resolve({
+                err: 0,
+                data: response,
             })
         } catch (error) {
             console.log(error);

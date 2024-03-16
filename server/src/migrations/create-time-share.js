@@ -24,6 +24,9 @@ module.exports = {
       quantity: {
         type: Sequelize.INTEGER
       },
+      timeShareDateID: {
+        type: Sequelize.INTEGER
+      },
       typeRoomID: {
         type: Sequelize.INTEGER
       },
