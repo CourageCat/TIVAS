@@ -474,7 +474,7 @@ export const getHistory = (id) => {
       let ticketResponse = [];
       if (userResponse) {
         ticketResponse = await db.ReservationTicket.findAll({
-          attributes: { exclude: ['status', 'createdAt', 'updatedAt'] },
+          attributes: { exclude: ['createdAt', 'updatedAt'] },
           include: [
             {
               model: db.User,
@@ -551,9 +551,9 @@ export const getHistory = (id) => {
         err: (response.BookedFailed !== 0 || response.PurchasedSuccess !== 0 || response.PurchasedFailed !== 0) ? 0 : 1,
         message: !userResponse ?
           `User (${id}) does not exist!` :
-          (response.BookedFailed === 0 && response.PurchasedSuccess === 0 && response.PurchasedFailed === 0) ? 
-          `Can not find any history of User (${id})!`
-          : `User (${id})'s purchased history`,
+          (response.BookedFailed === 0 && response.PurchasedSuccess === 0 && response.PurchasedFailed === 0) ?
+            `Can not find any history of User (${id})!`
+            : `User (${id})'s purchased history`,
         data: response
       })
     } catch (error) {

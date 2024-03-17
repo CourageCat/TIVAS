@@ -466,20 +466,12 @@ export const checkPriority = (id) => {
                             attributes: ['id', 'name']
                         },
                         {
-                            required: true,
                             model: db.TimeShare,
                             atributes: ['id', 'startDate', 'endDate'],
                             include: [
                                 {
                                     model: db.TypeRoom,
                                     attributes: ['id', 'name']
-                                },
-                                {
-                                    required: true,
-                                    model: db.TimeShareDate,
-                                    where: {
-                                        id: timeShareDatesResponse.id
-                                    }
                                 },
                             ]
                         },
@@ -488,7 +480,10 @@ export const checkPriority = (id) => {
                         timeShareID: {
                             [Op.ne]: null
                         },
-                        status: 1
+                        status: 1,
+                        reservationDate: timeShareDatesResponse.reservationDate,
+                        closeDate: timeShareDatesResponse.closeDate
+                        
                     }
                 })
                 console.log(ticketResponse[0]);
@@ -1351,22 +1346,21 @@ export const getAllTicketsByUser = ({ id, status, page, limit, orderBy, orderTyp
                     userID: id,
                 }
             })
-            console.log(projectByUser);
             let result = Object.groupBy(projectByUser, ({ projectID }) => projectID);
             let count = 0;
             for (let properties in result) {
                 count = count + 1;
             }
-            console.log(count);
+            console.log(Object.getOwnPropertyNames(result)[1]);         
+
             for (let i = 0; i < count; i++) {
-                console.log();
                 let timeShareOnSale = await db.TimeShareDate.findOne({
                     where: {
                         projectID: Object.getOwnPropertyNames(result)[i]
                     },
                     order: [['id', 'DESC']]
                 })
-                console.log(timeShareOnSale);
+                console.log(timeShareOnSale.reservationDate);
                 //const ticketResponsePagination = await db.R.findAll();
                 // countPages = ticketResponsePagination.length !== 0 ? 1 : 0;
                 // if (ticketResponsePagination.length / queries.limit > 1) {
