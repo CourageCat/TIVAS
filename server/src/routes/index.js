@@ -8,6 +8,7 @@ import timeshare from "./timeshare";
 import reservationticket from "./reservationticket";
 import booking from "./booking";
 import location from "./location";
+import feedback from "./feedback";
 
 const initRoutes = (app) => {
   app.use("/api/v1/auth", auth);
@@ -19,6 +20,7 @@ const initRoutes = (app) => {
   app.use("/api/v1/reservationticket", reservationticket);
   app.use("/api/v1/booking", booking);
   app.use("/api/v1/location", location);
+  app.use("/api/v1/feedback", feedback);
 
   app.use(notFound);
 };

@@ -2,33 +2,15 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    await queryInterface.createTable('TimeShares', {
+    await queryInterface.createTable('FeedBacks', {
       id: {
         allowNull: false,
         autoIncrement: true,
         primaryKey: true,
         type: Sequelize.INTEGER
       },
-      price: {
-        type: Sequelize.DOUBLE
-      },
-      startDate: {
-        type: Sequelize.DATE
-      },
-      endDate: {
-        type: Sequelize.DATE
-      },
-      saleStatus: {
-        type: Sequelize.INTEGER
-      },
-      quantity: {
-        type: Sequelize.INTEGER
-      },
-      timeShareDateID: {
-        type: Sequelize.INTEGER
-      },
-      typeRoomID: {
-        type: Sequelize.INTEGER
+      content: {
+        type: Sequelize.STRING
       },
       userID: {
         type: Sequelize.INTEGER
@@ -46,6 +28,6 @@ module.exports = {
     });
   },
   async down(queryInterface, Sequelize) {
-    await queryInterface.dropTable('TimeShares');
+    await queryInterface.dropTable('FeedBacks');
   }
 };

@@ -11,9 +11,13 @@ module.exports = (sequelize, DataTypes) => {
          */
         static associate(models) {
             // define association here
-            TimeShareDate.belongsTo(models.Project ,{
+            TimeShareDate.belongsTo(models.Project, {
                 foreignKey: 'projectID',
-              });
+            });
+            TimeShareDate.hasMany(models.TimeShare, {
+                foreignKey: 'timeShareDateID',
+                ondelete: 'cascade', hooks: true,
+            })
         }
     }
     TimeShareDate.init({
