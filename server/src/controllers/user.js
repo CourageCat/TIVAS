@@ -89,3 +89,9 @@ export const checkProjectWishlist = async (req, res) => {
   const response = await services.checkProjectWishlist(req.body);
   return res.status(200).json(response);
 }
+
+export const getHistory = async (req, res) => {
+  const { id } = req.params;
+  const response = await services.getHistory(id);
+  return res.status(200).json(response);
+}

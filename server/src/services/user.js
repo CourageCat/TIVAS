@@ -431,15 +431,15 @@ export const deletewishlist = ({ id, projectID }) => {
   });
 };
 
-export const checkProjectWishlist = ({id, projectID}) => {
+export const checkProjectWishlist = ({ id, projectID }) => {
   return new Promise(async (resolve, reject) => {
     try {
       let wishListResponse;
       const userResponse = await db.User.findByPk(id);
       const projectResponse = await db.Project.findByPk(projectID);
-      if(userResponse && projectResponse){
+      if (userResponse && projectResponse) {
         wishListResponse = await db.WishList.findOne({
-          where:{
+          where: {
             userID: id,
             projectID,
           }
@@ -448,17 +448,117 @@ export const checkProjectWishlist = ({id, projectID}) => {
       resolve({
         err: wishListResponse ? 0 : 1,
         message: !userResponse ?
-        `User (${id}) does not exist!` 
-        : !projectResponse ?
-        `Project (${projectID}) does not exist!`
-        : !wishListResponse ?
-        `Project (${projectID}) does not belong to User (${id})'s wishlist`
-        : `Project (${projectID}) belongs to User (${id})'s wishlist`,
+          `User (${id}) does not exist!`
+          : !projectResponse ?
+            `Project (${projectID}) does not exist!`
+            : !wishListResponse ?
+              `Project (${projectID}) does not belong to User (${id})'s wishlist`
+              : `Project (${projectID}) belongs to User (${id})'s wishlist`,
         data: !wishListResponse ? false : true
       })
     } catch (error) {
       console.log(error);
       reject(error);
+    }
+  })
+}
+
+export const getHistory = (id) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let response = {};
+      response.BookedFailed = [];
+      response.PurchasedFailed = [];
+      response.PurchasedSuccess = [];
+      const userResponse = await db.User.findByPk(id);
+      let ticketResponse = [];
+      if (userResponse) {
+        ticketResponse = await db.ReservationTicket.findAll({
+          attributes: { exclude: ['status', 'createdAt', 'updatedAt'] },
+          include: [
+            {
+              model: db.User,
+              attributes: ['id', 'username']
+            },
+            {
+              model: db.Project,
+              attributes: ['id', 'name', 'thumbnailPathUrl', 'status'],
+              include: {
+                model: db.Location,
+                attributes: ['id', 'name'],
+              }
+            },
+            {
+              model: db.TimeShare,
+              attributes: ['id', 'startDate', 'endDate', 'price'],
+              include: [
+                {
+                  model: db.TypeRoom,
+                  atributes: ['id', 'name'],
+                },
+
+              ]
+            },
+            {
+              model: db.Booking,
+              attributes: ['id', 'status', 'createdAt', 'updatedAt'],
+            },
+          ],
+          where: {
+            userID: id,
+          }
+        })
+      }
+      for (let i = 0; i < ticketResponse.length; i++) {
+        const ticket = {}
+        ticket.reservationID = ticketResponse[i].id
+        ticket.code = ticketResponse[i].code;
+        ticket.projectID = ticketResponse[i].Project.id
+        ticket.projectName = ticketResponse[i].Project.name;
+        ticket.projectThumbnailPathUrl = ticketResponse[i].Project.thumbnailPathUrl;
+        ticket.location = ticketResponse[i].Project.Location.name
+        if (ticketResponse[i].refundDate) {
+          if (ticketResponse[i].TimeShare) {
+            ticket.typeRoomID = ticketResponse[i].TimeShare.TypeRoom.id
+            ticket.typeRoomName = ticketResponse[i].TimeShare.TypeRoom.name
+            ticket.timeShareID = ticketResponse[i].TimeShare.id
+            ticket.startDate = ticketResponse[i].TimeShare.startDate;
+            ticket.endDate = ticketResponse[i].TimeShare.endDate;
+            ticket.price = ticketResponse[i].TimeShare.price;
+            ticket.refund = ticketResponse[i].refund;
+            ticket.refundDate = ticketResponse[i].refundDate;
+            ticket.bookingTimeShareDate = ticketResponse[i].bookingDate
+          } else {
+            ticket.refund = ticketResponse[i].refund;
+            ticket.refundDate = ticketResponse[i].refundDate;
+            ticket.reservatedProjectDate = ticketResponse[i].createdAt
+          }
+          response.BookedFailed.push(ticket);
+        }
+        if (ticketResponse[i].status === 2) {
+          ticket.bookingStatus = ticketResponse[i].Booking.status;
+          if (ticketResponse[i].Booking.status === 1) {
+            ticket.purchasedSuccessDate = ticketResponse[i].Booking.updatedAt
+            response.PurchasedSuccess.push(ticket);
+          }
+          if (ticketResponse[i].Booking.status === -1) {
+            ticket.purchasedFailedDate = ticketResponse[i].Booking.updatedAt
+            response.PurchasedFailed.push(ticket);
+          }
+        }
+      }
+      resolve({
+        err: (response.BookedFailed !== 0 || response.PurchasedSuccess !== 0 || response.PurchasedFailed !== 0) ? 0 : 1,
+        message: !userResponse ?
+          `User (${id}) does not exist!` :
+          (response.BookedFailed === 0 && response.PurchasedSuccess === 0 && response.PurchasedFailed === 0) ? 
+          `Can not find any history of User (${id})!`
+          : `User (${id})'s purchased history`,
+        data: response
+      })
+    } catch (error) {
+      console.log(error);
+      reject(error)
     }
   })
 }

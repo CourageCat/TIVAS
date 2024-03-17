@@ -1103,7 +1103,7 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                             }
                         })
                     } else {
-                        await db.TimeShareDate.create({
+                        const timeShareDatesCreated = await db.TimeShareDate.create({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
                             openDate: convertDate(openDate),
@@ -1118,8 +1118,8 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                             closeDate: convertDate(closeDate),
                         }, {
                             where: {
-                                reservationDate: timeShareDatesResponse.reservationDate,
-                                closeDate: timeShareDatesResponse.closeDate,
+                                reservationDate: timeShareDatesCreated.reservationDate,
+                                closeDate: timeShareDatesCreated.closeDate,
                             }
                         })
                     }
@@ -1226,6 +1226,72 @@ export const updateOrdering = ({ id, ordering }) => {
             resolve({
                 err: 0,
                 mess: "Update ordering successfully"
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+    })
+}
+
+export const getAllInReservation = ({
+    page,
+    limit,
+    orderBy,
+    orderType
+}) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let projectResponse = [];
+            let pageInput = 1;
+            let countPages = 0;
+            let queries = pagination({ page, limit, orderType, orderBy });
+            //countPages
+            const projectResponsePagination = await db.Project.findAll({
+                where: {
+                    status: 1,
+                }
+            })
+            countPages = projectResponsePagination.length !== 0 ? 1 : 0;
+            if (projectResponsePagination.length / queries.limit > 1) {
+                countPages = Math.ceil(projectResponsePagination.length / queries.limit)
+            }
+            if (page) {
+                pageInput = page
+            }
+
+            //Pagination
+            if(pageInput <= countPages){
+                projectResponse = await db.Project.findAll({
+                    attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID'],
+                    include: {
+                        model: db.Location,
+                        attributes: ['id', 'name']
+                    },
+                    where: {
+                        status: 1,
+                    },
+                    ...queries
+                })
+                if(projectResponse.length !== 0){
+                    for(let i = 0; i <  projectResponse.length; i++){
+                        projectResponse[i].location = projectResponse[i].Location.name;
+                        if (projectResponse[i].features) {
+                            projectResponse[i].features = projectResponse[i].features.split(',');
+                        }
+                        if (projectResponse[i].attractions) {
+                            projectResponse[i].attractions = projectResponse[i].attractions.split(',');
+                        }
+                    }
+                }
+            }
+            resolve({
+                err: projectResponse.length !== 0 ? 0 : 1,
+                message: projectResponse.length === 0 ? 'Can not find nay Project being on Open Reservation Stage!' : 'All Projects being on Open Reservation Stage.',
+                data: projectResponse,
+                count: projectResponse.length,
+                countPages: countPages,
+                page: pageInput
             })
         } catch (error) {
             console.log(error);
