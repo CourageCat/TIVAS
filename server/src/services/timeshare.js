@@ -13,6 +13,23 @@ const convertDate = (dateString) => {
     return date;
 }
 
+function formatDate(date) {
+    // Ensure 'date' is a valid Date object
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
+
+    // Get day, month, and year
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are zero-based
+    const year = date.getFullYear();
+
+    // Create the formatted date string
+    const formattedDate = `${day}/${month}/${year}`;
+
+    return formattedDate;
+}
+
 export const createNewTimeShare = (
     {
         typeRoomID,
@@ -323,31 +340,41 @@ export const getAllTimeShareOfProject = (projectID, {
 export const getAllTimeShareOfProjectByAdmin = (projectID, {
     page,
     limit,
-    orderBy,
-    orderType,
 }) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let response = {};
             const projectResponse = await db.Project.findByPk(projectID);
-            if(projectResponse){
+            if (projectResponse) {
                 const timeShareSold = await db.TimeShare.findAll({
+                    raw: true,
+                    nest: true,
+                    attributes: ['id', 'price', 'startDate', 'endDate', 'saleStatus', 'createdAt', 'timeShareDateID'],
                     include: [
                         {
                             model: db.TypeRoom,
-                            attributes: [],
+                            attributes: ['id', 'name', 'persons'],
                             required: true,
                             include: {
                                 model: db.TypeOfProject,
-                                attributes: [],
+                                attributes: ['id'],
                                 where: {
                                     projectID
                                 },
+                                include: {
+                                    model: db.Project,
+                                    attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                    include: {
+                                        model: db.Location,
+                                        attributes: ['id', 'name']
+                                    }
+                                }
                             }
                         },
                         {
                             required: true,
                             model: db.TimeShareDate,
-                            attributes: [],
+                            attributes: ['reservationDate', 'closeDate'],
                             where: {
                                 status: 1,
                             }
@@ -355,34 +382,77 @@ export const getAllTimeShareOfProjectByAdmin = (projectID, {
                     ],
                 })
                 const timeShareOnSale = await db.TimeShare.findAll({
+                    raw: true,
+                    nest: true,
+                    attributes: ['id', 'price', 'startDate', 'endDate', 'saleStatus', 'createdAt'],
                     include: [
                         {
                             model: db.TypeRoom,
-                            attributes: [],
+                            attributes: ['id', 'name', 'persons'],
                             required: true,
                             include: {
                                 model: db.TypeOfProject,
-                                attributes: [],
+                                attributes: ['id'],
                                 where: {
                                     projectID
                                 },
+                                include: {
+                                    model: db.Project,
+                                    attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                    include: {
+                                        model: db.Location,
+                                        attributes: ['id', 'name']
+                                    }
+                                }
                             }
                         },
                         {
                             required: true,
                             model: db.TimeShareDate,
-                            attributes: [],
+                            attributes: ['reservationDate', 'closeDate'],
                             where: {
                                 status: 0,
                             }
                         }
                     ],
                 })
-                console.log(timeShareSold);
-                console.log(timeShareOnSale);
+                //OnSale
+                if (timeShareOnSale.length !== 0) {
+                    const dateOnSale = formatDate(timeShareOnSale[0].TimeShareDate.reservationDate) + "-" + formatDate(timeShareOnSale[0].TimeShareDate.closeDate);
+                    response.OnSale = [];
+                    const onSale = {}
+                    onSale.OnSaleDate = dateOnSale;
+                    onSale.OnSale = timeShareOnSale;
+                    response.OnSale.push(onSale);
+                }
+
+                //Sold
+                if (timeShareSold.length !== 0) {
+                    response.Sold = [];
+                    let result = Object.groupBy(timeShareSold, ({ timeShareDateID }) => timeShareDateID)
+                    let count1 = 0
+                    for (let properties in result) {
+                        count1 = count1 + 1
+                    }
+                    console.log(result);
+                    for (let i = 0; i < count1; i++) {
+                        console.log(Object.getOwnPropertyNames(result)[i]);
+                        const timeShareDate = await db.TimeShareDate.findByPk(Object.getOwnPropertyNames(result)[i]);
+                        console.log(timeShareDate);
+                        const dateSold = formatDate(timeShareDate.reservationDate) + "-" + formatDate(timeShareDate.closeDate);
+                        const sold = {}
+                        sold.SoldDate = dateSold;
+                        sold.Sold = result[Object.getOwnPropertyNames(result)[i]];
+                        response.Sold.push(sold);
+                    }
+                }
+                //response.OnSale = 
+                //console.log(timeShareSold);
+                //console.log(timeShareOnSale);
             }
             resolve({
                 err: 0,
+                data: response,
             })
         } catch (error) {
             console.log(error);

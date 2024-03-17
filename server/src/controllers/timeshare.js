@@ -59,14 +59,14 @@ export const createNewTimeShare = async (req, res) => {
 };
 
 export const getAllTimeShare = async (req, res) => {
-  try {
-    const response = await services.getAllTimeShare(req.query);
-    res.status(200).json(response);
-  } catch (error) {
-    console.log(error);
-    return internalServerError("Error at Server Side!", res);
-  }
-};
+    try {
+        const response = await services.getAllTimeShare(req.query);
+        return res.status(200).json(response);
+    } catch (error) {
+        console.log(error);
+        return internalServerError("Error at Server Side!", res);
+    }
+}
 
 export const getAllTimeShareOfProject = async (req, res) => {
     try {

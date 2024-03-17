@@ -70,6 +70,8 @@ router.put("/getAllProjectReservation", controllers.getAllProjectReservation)
 
 router.put("/updateOrdering", controllers.updateOrdering)
 
+router.get("/getAllInReservation", controllers.getAllInReservation)
+
 router.get(
   "/:id",
   controllers.getDetailsProject
