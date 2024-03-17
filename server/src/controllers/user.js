@@ -91,7 +91,6 @@ export const checkProjectWishlist = async (req, res) => {
 }
 
 export const getHistory = async (req, res) => {
-  const { id } = req.params;
-  const response = await services.getHistory(id);
+  const response = await services.getHistory(req.query);
   return res.status(200).json(response);
 }
