@@ -232,7 +232,13 @@ export const getAllTimeShareOfProject = (projectID, {
             const queries = pagination({ page, limit, orderType, orderBy });
             queries.nest = true;
             queries.raw = true;
-            const projectResponse = await db.Project.findByPk(projectID);
+            const projectResponse = await db.Project.findByPk(projectID, {
+                attributes: ['id', 'name'],
+                include: {
+                    model: db.Location,
+                    attributes: ['id', 'name']
+                }
+            });
             let response = [];
             queries.nest = true;
             queries.raw = true;
@@ -325,7 +331,11 @@ export const getAllTimeShareOfProject = (projectID, {
                     `Can not find Project (${projectID})` :
                     !(response.length !== 0) ? `Can not find any TimeShares of Project (${projectID})`
                         : `All TimeShares Result`,
-                data: response.length !== 0 ? response : null,
+                data: response.length !== 0 ?
+                    response
+                    : projectResponse ?
+                        projectResponse
+                        : null,
                 count: response.length !== 0 ? response.length : 0,
                 page: pageInput,
                 countPages: countPages,
