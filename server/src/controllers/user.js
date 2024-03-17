@@ -86,7 +86,7 @@ export const deletewishlist = async (req, res) => {
 };
 
 export const checkProjectWishlist = async (req, res) => {
-  const response = await services.checkProjectWishlist(req.body);
+  const response = await services.checkProjectWishlist(req.query);
   return res.status(200).json(response);
 }
 

@@ -407,19 +407,12 @@ export const viewwishlist = ({ id, page, limit, orderBy, orderType }) => {
 export const deletewishlist = ({ id, projectID }) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const wishList = await db.WishList.findOne({
-        where: {
-          userID: id,
-          projectID,
-        }
-      })
-      if (wishList) {
-        await db.WishList.destroy({
+        const wishList = await db.WishList.destroy({
           where: {
-            id: projectID
+            userID: id,
+            projectID: projectID
           }
         })
-      }
       resolve({
         err: wishList ? 0 : 1,
         mess: !wishList ? `Project (${projectID}) does not belong to User (${id})!` : "Delete project from wishlist successfully."
