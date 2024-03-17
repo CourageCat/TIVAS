@@ -227,23 +227,29 @@ export const getAllTimeShareOfProject = (projectID, {
 ) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let response = {};
+            response.Project = {};
+            response.list = [];
+            let timeShareResponse = [];
             let countPages = 0;
             let pageInput = 1;
             const queries = pagination({ page, limit, orderType, orderBy });
             queries.nest = true;
             queries.raw = true;
             const projectResponse = await db.Project.findByPk(projectID, {
-                attributes: ['id', 'name'],
+                attributes: ['id', 'name', 'thumbnailPathUrl'],
                 include: {
                     model: db.Location,
                     attributes: ['id', 'name']
                 }
             });
-            let response = [];
             queries.nest = true;
             queries.raw = true;
             if (projectResponse) {
-                const timeShareResponse = await db.TimeShare.findAll({
+                response.Project.name = projectResponse.name;
+                response.Project.location = projectResponse.Location.name;
+                response.Project.thumbnailPathUrl = projectResponse.thumbnailPathUrl;
+                const timeShareResponsePagination = await db.TimeShare.findAll({
                     attributes: [],
                     include: [
                         {
@@ -268,19 +274,15 @@ export const getAllTimeShareOfProject = (projectID, {
                         }
                     ],
                 });
-                console.log(timeShareResponse);
-                countPages = timeShareResponse.length !== 0 ? 1 : 0;
-                if (timeShareResponse.length / queries.limit > 1) {
-                    countPages = Math.ceil(timeShareResponse.length / queries.limit)
+                countPages = timeShareResponsePagination.length !== 0 ? 1 : 0;
+                if (timeShareResponsePagination.length / queries.limit > 1) {
+                    countPages = Math.ceil(timeShareResponsePagination.length / queries.limit)
                 }
                 if (page) {
                     pageInput = page
                 }
-                console.log(page);
-                console.log(countPages);
-                console.log(page <= countPages);
                 if (pageInput <= countPages) {
-                    response = await db.TimeShare.findAll({
+                    timeShareResponse = await db.TimeShare.findAll({
                         raw: true,
                         nest: true,
                         attributes: ['id', 'price', 'startDate', 'endDate', 'saleStatus', 'createdAt'],
@@ -316,27 +318,21 @@ export const getAllTimeShareOfProject = (projectID, {
                         ],
                         ...queries,
                     })
-
-                    if (response.length !== 0) {
-                        for (let i = 0; i < response.length; i++) {
-                            response[i].location = response[i].TypeRoom.TypeOfProject.Project.Location.name;
-                        }
-                    }
+                    console.log(timeShareResponse);
+                    response.list = timeShareResponse;
                 }
+            }else{
+                response.Project = null;
             }
 
             resolve({
-                err: response.length !== 0 ? 0 : 1,
+                err: timeShareResponse.length !== 0 ? 0 : 1,
                 message: !projectResponse ?
                     `Can not find Project (${projectID})` :
-                    !(response.length !== 0) ? `Can not find any TimeShares of Project (${projectID})`
-                        : `All TimeShares Result`,
-                data: response.length !== 0 ?
-                    response
-                    : projectResponse ?
-                        projectResponse
-                        : null,
-                count: response.length !== 0 ? response.length : 0,
+                    !(timeShareResponse.length !== 0) ? `Can not find any TimeShares of Project (${projectID})`
+                        : `All TimeShares Of Project (${projectID})'s Result`,
+                data: response,
+                count: timeShareResponse.length !== 0 ? timeShareResponse.length : 0,
                 page: pageInput,
                 countPages: countPages,
             })
