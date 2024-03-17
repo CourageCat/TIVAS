@@ -71,7 +71,7 @@ export const unBanUser = async (req, res) => {
 };
 
 export const addWishlist = async (req, res) => {
-  const response = await services.addWishlist(req.body);
+  const response = await services.addWishlist(req.query);
   return res.status(200).json(response);
 };
 
@@ -84,3 +84,8 @@ export const deletewishlist = async (req, res) => {
   const response = await services.deletewishlist(req.query);
   return res.status(200).json(response);
 };
+
+export const checkProjectWishlist = async (req, res) => {
+  const response = await services.checkProjectWishlist(req.query);
+  return res.status(200).json(response);
+}

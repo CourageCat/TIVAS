@@ -92,6 +92,13 @@ export const login = ({ username, email, password }) => {
         },
         raw: true,
       });
+      if (user?.banStatus === 1) {
+        resolve({
+          err: 1,
+          mess: user?.reasonBan,
+        });
+        return;
+      }
       const isChecked =
         user?.type == "Local" && bcrypt.compareSync(password, user.password);
       const accessToken = isChecked ? generateAccessToken(user) : null;
@@ -140,7 +147,13 @@ export const loginGoogle = ({ email, roleID = 3 }) => {
         },
         raw: true,
       });
-
+      if (user?.banStatus === 1) {
+        resolve({
+          err: 1,
+          mess: user?.reasonBan,
+        });
+        return;
+      }
       const accessToken =
         user?.type === "Google" ? generateAccessToken(user) : null;
       const refreshToken =

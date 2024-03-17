@@ -2,6 +2,7 @@ import nodemailer from "nodemailer";
 import ejs from "ejs";
 import db from "../models";
 import { pagination } from "../middlewares/pagination";
+import { use } from "passport";
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 const fs = require("fs");
@@ -300,32 +301,23 @@ export const unBanUser = ({ id }) => {
   });
 };
 
-export const addWishlist = ({ id, list }) => {
+export const addWishlist = ({ id, projectID }) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let listdb = list.split(',')
-      let array = []
-      // listdb.forEach((item) => {
-      //   array.push({userID:id, projectID:item})
-      // });
-      for (let i = 0; i < listdb.length; i++) {
-        const wishList = await db.WishList.findOne({
-          where: {
-            userID: id,
-            projectID: listdb[i]
-          }
-        })
-        if (!wishList) {
-          array.push({ userID: id, projectID: listdb[i] })
+      const [wishlist, created] = await db.WishList.findOrCreate({
+        where: {
+          userID: id,
+          projectID: projectID,
+        },
+        defaults: {
+          userID: id,
+          projectID: projectID
         }
-      }
-      const wishlist = await db.WishList.bulkCreate(array, {
-        returning: true
       })
       resolve({
-        err: wishlist ? 0 : 1,
-        mess: wishlist ? "Add to wishlist success" : "Can not add project to wishlist",
-        data: wishlist ? wishlist : ""
+        err: created ? 0 : 1,
+        mess: created ? "Add to wishlist success." : "You have already added this project to wishlist!",
+        data: created ? wishlist : ""
       })
     } catch (err) {
       console.log(err);
@@ -412,30 +404,18 @@ export const viewwishlist = ({ id, page, limit, orderBy, orderType }) => {
   });
 };
 
-export const deletewishlist = ({ id, list }) => {
+export const deletewishlist = ({ id, projectID }) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let listdb = list.split(',')
-      let array = []
-      for (let i = 0; i < listdb.length; i++) {
-        const wishlist = await db.WishList.findOne({
+        const wishList = await db.WishList.destroy({
           where: {
             userID: id,
-            projectID: listdb[i]
+            projectID: projectID
           }
         })
-        if(wishlist){
-        array.push(wishlist.id)
-        }
-      }
-      await db.WishList.destroy({
-        where: {
-          id: array
-        }
-      })
       resolve({
-        err: array ? 0 : 1,
-        mess: array ? "Delete project from wishlist success" : "Can not delete project from wishlist"
+        err: wishList ? 0 : 1,
+        mess: !wishList ? `Project (${projectID}) does not belong to User (${id})!` : "Delete project from wishlist successfully."
       })
     } catch (err) {
       console.log(err);
@@ -443,3 +423,35 @@ export const deletewishlist = ({ id, list }) => {
     }
   });
 };
+
+export const checkProjectWishlist = ({id, projectID}) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      let wishListResponse;
+      const userResponse = await db.User.findByPk(id);
+      const projectResponse = await db.Project.findByPk(projectID);
+      if(userResponse && projectResponse){
+        wishListResponse = await db.WishList.findOne({
+          where:{
+            userID: id,
+            projectID,
+          }
+        })
+      }
+      resolve({
+        err: wishListResponse ? 0 : 1,
+        message: !userResponse ?
+        `User (${id}) does not exist!` 
+        : !projectResponse ?
+        `Project (${projectID}) does not exist!`
+        : !wishListResponse ?
+        `Project (${projectID}) does not belong to User (${id})'s wishlist`
+        : `Project (${projectID}) belongs to User (${id})'s wishlist`,
+        data: !wishListResponse ? false : true
+      })
+    } catch (error) {
+      console.log(error);
+      reject(error);
+    }
+  })
+}

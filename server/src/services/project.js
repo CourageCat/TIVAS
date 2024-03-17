@@ -574,7 +574,7 @@ export const searchNameAndLocationProject = (info, limit) => {
                     model: db.Location,
                     attributes: ['id', 'name'],
                 },
-                where: {
+                where:{
                     name: { [Op.substring]: info }
                 },
                 limit,
@@ -698,9 +698,11 @@ export const getDetailsProject = (id) => {
             );
 
             if (projectResponse) {
-                const type = [];
-                for(let i = 0; i < projectResponse.TypeOfProjects.length; i++){
-                    type.push(projectResponse.TypeOfProjects[i].Type.name);
+                let type = "";
+                if(projectResponse.TypeOfProjects.length !== 2){
+                    type = projectResponse.TypeOfProjects[0].Type.name
+                }else{
+                    type = "Villa and Hotel";
                 }
                 response.Project = {
                     id: projectResponse.id,
