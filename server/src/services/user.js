@@ -589,24 +589,26 @@ export const getHistory = ({
             ticket.projectName = ticketResponse[i].Project.name;
             ticket.projectThumbnailPathUrl = ticketResponse[i].Project.thumbnailPathUrl;
             ticket.location = ticketResponse[i].Project.Location.name
-            if (+status === 1) {
-              if (ticketResponse[i].TimeShare) {
-                ticket.typeRoomID = ticketResponse[i].TimeShare.TypeRoom.id
-                ticket.typeRoomName = ticketResponse[i].TimeShare.TypeRoom.name
-                ticket.timeShareID = ticketResponse[i].TimeShare.id
-                ticket.startDate = ticketResponse[i].TimeShare.startDate;
-                ticket.endDate = ticketResponse[i].TimeShare.endDate;
-                ticket.price = ticketResponse[i].TimeShare.price;
+            if (ticketResponse[i].TimeShare) {
+              ticket.typeRoomID = ticketResponse[i].TimeShare.TypeRoom.id
+              ticket.typeRoomName = ticketResponse[i].TimeShare.TypeRoom.name
+              ticket.timeShareID = ticketResponse[i].TimeShare.id
+              ticket.startDate = ticketResponse[i].TimeShare.startDate;
+              ticket.endDate = ticketResponse[i].TimeShare.endDate;
+              ticket.price = ticketResponse[i].TimeShare.price;
+              if (+status === 1) {
                 ticket.refund = ticketResponse[i].refund;
                 ticket.refundDate = ticketResponse[i].refundDate;
                 ticket.bookingTimeShareDate = ticketResponse[i].bookingDate
-              } else {
+              }
+            } else {
+              if (+status === 1) {
                 ticket.refund = ticketResponse[i].refund;
                 ticket.refundDate = ticketResponse[i].refundDate;
                 ticket.reservatedProjectDate = ticketResponse[i].createdAt
               }
             }
-            else {
+            if (+status === 2 || +status === 3) {
               ticket.bookingStatus = ticketResponse[i].Booking.status;
               if (+status === 2) {
                 ticket.purchasedSuccessDate = ticketResponse[i].Booking.updatedAt
