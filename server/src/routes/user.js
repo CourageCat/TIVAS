@@ -27,8 +27,8 @@ router.get("/getallusers", controllers.getAllUsers);
 router.get("/getbankinguser/:username", controllers.getBankingUser);
 router.post("/banuser/", controllers.banUser);
 router.post("/unbanuser/", controllers.unBanUser);
-router.post("/addwishlist", controllers.addWishlist)
-router.get("/viewwishlist", controllers.viewwishlist)
-router.delete("/deletewishlist", controllers.deletewishlist)
-router.get("/checkprojectwishlist", controllers.checkProjectWishlist)
+router.post("/addwishlist", controllers.addWishlist);
+router.get("/viewwishlist", controllers.viewwishlist);
+router.delete("/deletewishlist", controllers.deletewishlist);
+router.get("/checkprojectwishlist", controllers.checkProjectWishlist);
 export default router;

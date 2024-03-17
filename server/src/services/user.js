@@ -416,7 +416,7 @@ export const deletewishlist = ({ id, projectID }) => {
       if (wishList) {
         await db.WishList.destroy({
           where: {
-            id: projectID
+            projectID: projectID
           }
         })
       }
