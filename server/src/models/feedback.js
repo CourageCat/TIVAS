@@ -16,6 +16,7 @@ module.exports = (sequelize, DataTypes) => {
   }
   FeedBack.init({
     content: DataTypes.STRING,
+    status: DataTypes.INTEGER,
     userID: DataTypes.INTEGER,
   }, {
     sequelize,

@@ -9,7 +9,7 @@ export const addFeedBack = async(req, res) => {
 }
 
 export const getAllFeedBackByAdmin = async(req, res) => {
-    const response = await services.getAllFeedBackByAdmin();
+    const response = await services.getAllFeedBackByAdmin(req.query);
     return res.status(200).json(response)
 }
 
