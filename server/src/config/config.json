@@ -1,9 +1,9 @@
 {
     "development": {
         "username": "root",
-        "password": "12345",
+        "password": "mysql@123456!",
         "database": "tivas",
-        "host": "127.0.0.1",
+        "host": "34.142.161.26",
         "dialect": "mysql",
         "logging": false,
         "timezone": "+07:00"
