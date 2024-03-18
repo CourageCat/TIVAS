@@ -421,24 +421,26 @@ export const updateProject = ({
     })
 }
 
-export const searchProject = ({ page, limit, orderBy, orderType, type, ...query }) => {
+export const searchProject = ({ info, searchBy, page, limit, orderBy, orderType, type}) => {
     return new Promise(async (resolve, reject) => {
         try {
             let response = [];
             let pageInput = 1;
+            let searchByDB = searchBy.split(',');
             if (type) {
                 type = type.split(",");
             }
             let locationDB;
             //condition clause
             const whereClause = {};
-            for (const [key, value] of Object.entries(query)) {
-                if (key !== 'location') {
-                    whereClause[key] = { [Op.substring]: value };
+            for (let i = 0; i < searchByDB.length; i++) {
+                if (searchByDB[i] !== 'location') {
+                    whereClause[searchByDB[i]] = { [Op.substring]: info };
                 } else {
-                    locationDB = value;
+                    locationDB = info;
                 }
             }
+            console.log(whereClause);
             const queries = pagination({ page, limit, orderType, orderBy });
             const projectResponse = await db.Project.findAll({
                 raw: true,
@@ -518,6 +520,7 @@ export const searchProject = ({ page, limit, orderBy, orderType, type, ...query 
                     group: ['TypeOfProjects.projectID', 'Project.name', 'Project.locationID', 'Project.thumbnailPathUrl', 'Project.id'],
                     having: type ? (literal(`COUNT(TypeOfProjects.projectID) = ${type.length}`)) : literal((`COUNT(TypeOfProjects.projectID) > 0`)),
                     subQuery: false,
+                    ...queries
                 });
                 if (response.length !== 0) {
                     for (let i = 0; i < response.length; i++) {
