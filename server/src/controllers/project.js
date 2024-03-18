@@ -238,3 +238,9 @@ export const updateOrdering = async (req, res) => {
   const response = await services.updateOrdering(req.body);
   return res.status(200).json(response);
 };
+
+export const statistic = async (req, res) => {
+  const {id} = req.params
+  const response = await services.statistic(id);
+  return res.status(200).json(response);
+};

@@ -75,5 +75,6 @@ router.get(
   controllers.getDetailsProject
 )
 
+router.get("/statistic/:id", controllers.statistic)
 
 export default router;

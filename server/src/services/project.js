@@ -15,6 +15,23 @@ const convertDate = (dateString) => {
     return date;
 }
 
+function formatDate(date) {
+    // Ensure 'date' is a valid Date object
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
+
+    // Get day, month, and year
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are zero-based
+    const year = date.getFullYear();
+
+    // Create the formatted date string
+    const formattedDate = `${day}/${month}/${year}`;
+
+    return formattedDate;
+}
+
 const deleteProjectImage = (fileData) => {
     if (fileData.thumbnail) {
         for (let i = 0; i < fileData.thumbnail.length; i++) {
@@ -1226,6 +1243,74 @@ export const updateOrdering = ({ id, ordering }) => {
             resolve({
                 err: 0,
                 mess: "Update ordering successfully"
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+    })
+}
+
+export const statistic = (id) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let array =[]
+            const project = await db.TimeShareDate.findAll({
+                where : {
+                    projectID : id,
+                    status : 1
+                }
+            })
+            // date
+            for (let i = 0; i < project.length; i++) {
+                let obj = {}
+                let check = true
+                obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].closeDate)
+                //numberOfReservationTicketBought && numberOfTimeSharesBooked
+                const {count, rows} = await db.ReservationTicket.findAndCountAll({
+                    where : {
+                        reservationDate : project[i].reservationDate,
+                        projectID : id
+                    }
+                })
+                obj.numberOfReservationTicketBought = count
+                let booked = 0
+                let ticketId = []
+                rows.forEach((item) => {
+                    if(item.status == 2) {
+                        booked++
+                        ticketId.push(item.id)
+                    }
+                })
+                obj.numberOfTimeSharesBooked = booked
+                //numberOfTimeSharesPurchasedFailed && numberOfTimeSharesPurchasedSuccess
+                const booking = await db.Booking.findAll({
+                    where : {
+                        reservationTicketID : ticketId,
+                    }
+                })
+                let accept = 0
+                let deny = 0
+                let revenue = count * project[i].reservationPrice
+                booking.forEach((item) => {
+                    if(item.status == 1){
+                        accept ++
+                        revenue += item.priceBooking
+                    }else if(item.status == -1){
+                        deny ++
+                    }else {
+                        check = false
+                    }
+                })
+                obj.numberOfTimeSharesPurchasedFailed = deny
+                obj.numberOfTimeSharesPurchasedSuccess = accept
+                obj.revenue = revenue
+                if(check) array.push(obj)
+            }
+            resolve({
+                err: 0,
+                mess: "Update ordering successfully",
+                data : array
             })
         } catch (error) {
             console.log(error);
