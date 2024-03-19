@@ -21,4 +21,9 @@ router.get(
     "/getAllToUser",
     controllers.showFeedBackToUser
 )
+
+router.delete(
+    "/:id",
+    controllers.deleteFeedBack
+)
 export default router;
