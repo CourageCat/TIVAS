@@ -1,29 +1,77 @@
 import db from "../models";
 import "dotenv/config";
-import { Model, Op, fn, col, literal } from "sequelize";
+import { Model, Op, fn, col, literal, where } from "sequelize";
 import { pagination } from "../middlewares/pagination";
 
+function formatDate(date) {
+    // Ensure 'date' is a valid Date object
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
+
+    // Get day, month, and year
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0"); // Months are zero-based
+    const year = date.getFullYear();
+
+    // Create the formatted date string
+    const formattedDate = `${day}/${month}/${year}`;
+
+    return formattedDate;
+}
 export const addFeedBack = ({
     userID,
     content,
 }) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const [feedback, created] = await db.FeedBack.findOrCreate({
-                defaults: {
-                    userID,
-                    content,
-                    status: 0
-                },
-                where: {
-                    userID,
-                    content,
+            let feedbackLimit = 0;
+            const today = new Date();
+            const todayYear = today.getFullYear();
+            const todayMonth = today.getMonth() + 1; // Month is zero-indexed, so add 1
+            const todayDay = today.getDate();
+            let userPermission;
+            const userResponse = await db.User.findByPk(userID);
+            if (userResponse) {
+                userPermission = await db.ReservationTicket.findOne({
+                    where: {
+                        userID,
+                        status: 2
+                    }
+                })
+                if (userPermission) {
+                    const { count, rows } = await db.FeedBack.findAndCountAll({
+                        where: {
+                            userID,
+                            createdAt: {
+                                [Op.and]: [
+                                    where(fn('YEAR', col('createdAt')), '=', todayYear),
+                                    where(fn('MONTH', col('createdAt')), '=', todayMonth),
+                                    where(fn('DAY', col('createdAt')), '=', todayDay)
+                                ]
+                            }
+                        }
+                    });
+                    console.log(feedbackLimit);
+                    feedbackLimit = count;
+                    if (feedbackLimit < 5) {
+                        await db.FeedBack.create({
+                            userID,
+                            content,
+                            status: 0
+                        })
+                    }
                 }
-            })
+            }
             resolve({
-                err: created ? 0 : 1,
-                message: created ? "Feedback Successfully" : `Feedback duplicated by User (${userID})`,
-                data: created ? feedback : ""
+                err: feedbackLimit < 5 ? 0 : 1,
+                message: !userResponse ?
+                    `User (${userID}) does not exist`
+                    : !userPermission ?
+                        `User must have at least 1 time priority when booking any timeshares to feedback!`
+                        : feedbackLimit >= 5 ?
+                            `User (${userID}) have already feedbacked more than 5 times on today!`
+                            : "Feedback Successfully",
             })
         } catch (error) {
             console.log(error);
