@@ -248,3 +248,9 @@ export const getAllSoldReservationStageOfProject = async (req, res) => {
   const response = await services.getAllSoldReservationStageOfProject(req.query);
   return res.status(200).json(response);
 }
+
+export const statisticOnStage = async (req, res) => {
+  const {id} = req.params
+  const response = await services.statisticOnStage(id);
+  return res.status(200).json(response);
+};

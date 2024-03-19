@@ -22,8 +22,8 @@ function formatDate(date) {
     }
 
     // Get day, month, and year
-    const day = date.getDate().toString().padStart(2, "0");
-    const month = (date.getMonth() + 1).toString().padStart(2, "0"); // Months are zero-based
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0'); // Months are zero-based
     const year = date.getFullYear();
 
     // Create the formatted date string
@@ -1384,6 +1384,79 @@ export const getAllSoldReservationStageOfProject = ({
                 count: response.length,
                 countPages: countPages,
                 page: pageInput
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+    })
+}
+
+export const statisticOnStage = (id) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let array =[]
+            const project = await db.TimeShareDate.findAll({
+                where : {
+                    projectID : id,
+                    status : 1
+                }
+            })
+            // date
+            for (let i = 0; i < project.length; i++) {
+                let countPurchased = 0;
+                let obj = {}
+                let check = true
+                obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].closeDate)
+                //numberOfReservationTicketBought && numberOfTimeSharesBooked
+                const {count, rows} = await db.ReservationTicket.findAndCountAll({
+                    where : {
+                        reservationDate : project[i].reservationDate,
+                        projectID : id
+                    }
+                })
+                obj.numberOfReservationTicketBought = count
+                let booked = 0
+                let ticketId = []
+                rows.forEach((item) => {
+                    if(item.status == 2) {
+                        booked++
+                        ticketId.push(item.id)
+                    }
+                })
+                obj.numberOfTimeSharesBooked = booked
+                //numberOfTimeSharesPurchasedFailed && numberOfTimeSharesPurchasedSuccess
+                const booking = await db.Booking.findAll({
+                    where : {
+                        reservationTicketID : ticketId,
+                    }
+                })
+                let accept = 0
+                let deny = 0
+                let revenue = 0
+                booking.forEach((item) => {
+                    if(item.status == 1){
+                        accept ++
+                        revenue += item.priceBooking
+                    }else if(item.status == -1){
+                        deny ++
+                    }else {
+                        check = false
+                    }
+                })
+                countPurchased = accept + deny;
+                revenue = revenue + countPurchased * project[i].reservationPrice
+                obj.numberOfTimeSharesPurchasedFailed = deny
+                obj.numberOfTimeSharesPurchasedSuccess = accept
+                obj.revenue = revenue
+                if(check) array.push(obj)
+            }
+            resolve({
+                err: array.length !== 0 ? 0 : 1,
+                mess: array.length === 0 ? 
+                `Project (${id}) does not have enough information for statistic!`
+                 : `Project (${id})'s statistic.`,
+                data : array
             })
         } catch (error) {
             console.log(error);

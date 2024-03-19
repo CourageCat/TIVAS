@@ -77,10 +77,11 @@ router.get(
   controllers.getAllSoldReservationStageOfProject
 )
 
+router.get("/statisticOnStage/:id", controllers.statisticOnStage)
+
 router.get(
   "/:id",
   controllers.getDetailsProject
 )
-
 
 export default router;
