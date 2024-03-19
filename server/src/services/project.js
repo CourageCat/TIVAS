@@ -836,33 +836,51 @@ export const updateBooking = ({
 }, id) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const errorMessage = [];
-            const project = await db.Project.findOne({
-                where: {
-                    id
-                }
-            })
-            if (project.status == 1 || project.status == 0 && openDate < closeDate) {
-                if (openDate > closeDate || openDate == closeDate) {
-                    errorMessage.push("Can not change openDate because new date is less than old openDate")
-                } else {
-                    const update = await db.Project.update({
+            const projectResponse = await db.Project.findByPk(id);
+            if (projectResponse) {
+                if (!(projectResponse.status === 2 && (projectResponse.openDate.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate.getTime() !== convertDate(closeDate).getTime()))) {
+                    await db.Project.update({
                         openDate: convertDate(openDate),
                         closeDate: convertDate(closeDate)
                     }, {
                         where: {
-                            id
+                            id,
                         }
                     })
+                    await db.TimeShareDate.update({
+                        openDate: convertDate(openDate),
+                        closeDate: convertDate(closeDate)
+                    }, {
+                        where: {
+                            projectID: id,
+                            status: 0
+                        }
+                    })
+                    await db.ReservationTicket.update({
+                        openDate: convertDate(openDate),
+                        closeDate: convertDate(closeDate)
+                    }, {
+                        where: {
+                            reservationDate: projectResponse.reservationDate,
+                            projectID: id,
+                        }
+                    })
+
+                    if(projectResponse.status === 1){
+
                     const user = await db.ReservationTicket.findAll({
                         where: {
                             projectID: id,
                             status: 1
                         }
                     })
-                    errorMessage.push("Change openDate Success")
-                    for (let i = 0; i < user.length; i++) {
-                        const user1 = await db.User.findByPk(user[i].userID)
+                    const result = Object.groupBy(user, ({ userID }) => userID)
+                    let count1 = 0
+                    for (let properties in result) {
+                        count1 = count1 + 1
+                    }
+                    for (let i = 0; i < count1; i++) {
+                        const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
                         let transporter = nodemailer.createTransport({
                             service: "gmail",
                             auth: {
@@ -874,8 +892,14 @@ export const updateBooking = ({
                             from: "Tivas",
                             to: `${user1.email}`,
                             subject: "Confirm received email",
-                            text: `Open date of ${project.name} is move to ${openDate} `
+                            text: projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() ?
+                                `Open date of ${projectResponse.name} is move to ${openDate} and Close date of ${projectResponse.name} is move to ${closeDate}`
+                                : projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() ?
+                                    `Open date of ${projectResponse.name} is move to ${openDate}`
+                                    : `Close date of ${projectResponse.name} is move to ${closeDate}`
+
                         };
+                        console.log(user1.id);
                         transporter.sendMail(mailOptions, function (error, info) {
                             if (error) {
                                 console.log(error);
@@ -883,16 +907,18 @@ export const updateBooking = ({
                                 console.log("Email sent: " + info.response);
                             }
                         });
-
                     }
+                    
                 }
-            } else {
-                errorMessage.push("Can not set booking time because this project in booking time")
             }
-
+        }
             resolve({
-                err: project ? 1 : 0,
-                mess: project ? errorMessage[0] : errorMessage[0]
+                err: !(projectResponse.status === 2 && (projectResponse.openDate.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate.getTime() !== convertDate(closeDate).getTime())) ? 0 : 1,
+                mess: !projectResponse ?
+                    `Project (${id}) does not exist!`
+                    : (projectResponse.status === 2 && (projectResponse.openDate.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate.getTime() !== convertDate(closeDate).getTime())) ?
+                        `Can not update Open date or Close date because Project(${id}) is already opened for booking!` :
+                        `Update booking for Project (${id}) successfully.`
             })
         } catch (error) {
             console.log(error);
@@ -900,6 +926,7 @@ export const updateBooking = ({
         }
     })
 }
+
 
 export const openReservationTicket = (id) => {
     return new Promise(async (resolve, reject) => {
@@ -1065,7 +1092,7 @@ export const getReservation = (id) => {
     })
 }
 
-export const updateReservationInfo = (id, { reservationDate, reservationPrice, openDate, closeDate }) => {
+export const updateReservationInfo = (id, { reservationDate, reservationPrice }) => {
     return new Promise(async (resolve, reject) => {
         try {
             const projectResponse = await db.Project.findByPk(id)
@@ -1081,12 +1108,20 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                                 id,
                             }
                         })
+                        await db.Project.update({
+                            reservationDate: convertDate(reservationDate),
+                            reservationPrice,
+                            openDate: null,
+                            closeDate: null
+                        }, {
+                            where: {
+                                id
+                            }
+                        })
                     }
                     await db.Project.update({
                         reservationDate: convertDate(reservationDate),
                         reservationPrice,
-                        openDate: convertDate(openDate),
-                        closeDate: convertDate(closeDate),
                     }, {
                         where: {
                             id
@@ -1103,8 +1138,6 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                         await db.TimeShareDate.update({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
-                            openDate: convertDate(openDate),
-                            closeDate: convertDate(closeDate),
                         }, {
                             where: {
                                 projectID: id,
@@ -1114,115 +1147,108 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                         await db.ReservationTicket.update({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
-                            openDate: convertDate(openDate),
-                            closeDate: convertDate(closeDate),
                         }, {
                             where: {
                                 reservationDate: timeShareDatesResponse.reservationDate,
-                                closeDate: timeShareDatesResponse.closeDate,
                             }
                         })
                     } else {
                         const timeShareDatesCreated = await db.TimeShareDate.create({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
-                            openDate: convertDate(openDate),
-                            closeDate: convertDate(closeDate),
                             projectID: id,
                             status: 0,
                         })
                         await db.ReservationTicket.update({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
-                            openDate: convertDate(openDate),
-                            closeDate: convertDate(closeDate),
                         }, {
                             where: {
                                 reservationDate: timeShareDatesCreated.reservationDate,
-                                closeDate: timeShareDatesCreated.closeDate,
                             }
                         })
                     }
-                } else if (projectResponse.status === 1) {
-                    await db.Project.update({
-                        openDate: convertDate(openDate),
-                        closeDate: convertDate(closeDate),
-                    }, {
-                        where: {
-                            id
-                        }
-                    })
-                    await db.TimeShareDate.update({
-                        openDate: convertDate(openDate),
-                        closeDate: convertDate(closeDate),
-                    }, {
-                        where: {
-                            projectID: id,
-                            status: 0
-                        }
-                    })
-                    await db.ReservationTicket.update({
-                        openDate: convertDate(openDate),
-                        closeDate: convertDate(closeDate),
-                    }, {
-                        where: {
-                            reservationDate: timeShareDatesResponse.reservationDate,
-                            closeDate: timeShareDatesResponse.closeDate,
-                        }
-                    })
                 }
-                if (((projectResponse.openDate?.getTime() !== convertDate(openDate).getTime()) || (projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime())) && projectResponse.status === 1) {
-                    const user = await db.ReservationTicket.findAll({
-                        where: {
-                            projectID: id,
-                            status: 1
-                        }
-                    })
-                    const result = Object.groupBy(user, ({ userID }) => userID)
-                    let count1 = 0
-                    for (let properties in result) {
-                        count1 = count1 + 1
-                    }
-                    for (let i = 0; i < count1; i++) {
-                        const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
-                        let transporter = nodemailer.createTransport({
-                            service: "gmail",
-                            auth: {
-                                user: process.env.GOOGE_APP_EMAIL,
-                                pass: process.env.GOOGLE_APP_PASSWORD,
-                            },
-                        });
-                        let mailOptions = {
-                            from: "Tivas",
-                            to: `${user1.email}`,
-                            subject: "Confirm received email",
-                            text: projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() ?
-                                `Open date of ${projectResponse.name} is move to ${openDate} and Close date of ${projectResponse.name} is move to ${closeDate}`
-                                : projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() ?
-                                    `Open date of ${projectResponse.name} is move to ${openDate}`
-                                    : `Close date of ${projectResponse.name} is move to ${closeDate}`
+                //  else if (projectResponse.status === 1) {
+                //     await db.Project.update({
+                //         openDate: openDate? openDateconvertDate(openDate) : null,
+                //         closeDate: closeDate? convertDate(closeDate): null,
+                //     }, {
+                //         where: {
+                //             id
+                //         }
+                //     })
+                //     await db.TimeShareDate.update({
+                //         openDate: openDate? openDateconvertDate(openDate) : null,
+                //         closeDate: closeDate? convertDate(closeDate): null,
+                //     }, {
+                //         where: {
+                //             projectID: id,
+                //             status: 0
+                //         }
+                //     })
+                //     await db.ReservationTicket.update({
+                //         openDate: openDate? openDateconvertDate(openDate) : null,
+                //         closeDate: closeDate? convertDate(closeDate): null,
+                //     }, {
+                //         where: {
+                //             reservationDate: projectResponse.reservationDate,
+                //             closeDate: projectResponse.closeDate,
+                //         }
+                //     })
+                // }
+                // if (((projectResponse.openDate?.getTime() !== convertDate(openDate).getTime()) || (projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime())) && projectResponse.status === 1) {
+                //     const user = await db.ReservationTicket.findAll({
+                //         where: {
+                //             projectID: id,
+                //             status: 1
+                //         }
+                //     })
+                //     const result = Object.groupBy(user, ({ userID }) => userID)
+                //     let count1 = 0
+                //     for (let properties in result) {
+                //         count1 = count1 + 1
+                //     }
+                //     for (let i = 0; i < count1; i++) {
+                //         const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
+                //         let transporter = nodemailer.createTransport({
+                //             service: "gmail",
+                //             auth: {
+                //                 user: process.env.GOOGE_APP_EMAIL,
+                //                 pass: process.env.GOOGLE_APP_PASSWORD,
+                //             },
+                //         });
+                //         let mailOptions = {
+                //             from: "Tivas",
+                //             to: `${user1.email}`,
+                //             subject: "Confirm received email",
+                //             text: projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() ?
+                //                 `Open date of ${projectResponse.name} is move to ${openDate} and Close date of ${projectResponse.name} is move to ${closeDate}`
+                //                 : projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() ?
+                //                     `Open date of ${projectResponse.name} is move to ${openDate}`
+                //                     : `Close date of ${projectResponse.name} is move to ${closeDate}`
 
-                        };
-                        console.log(user1.id);
-                        transporter.sendMail(mailOptions, function (error, info) {
-                            if (error) {
-                                console.log(error);
-                            } else {
-                                console.log("Email sent: " + info.response);
-                            }
-                        });
-                    }
-                }
+                //         };
+                //         console.log(user1.id);
+                //         transporter.sendMail(mailOptions, function (error, info) {
+                //             if (error) {
+                //                 console.log(error);
+                //             } else {
+                //                 console.log("Email sent: " + info.response);
+                //             }
+                //         });
+                //     }
+                // }
             }
             resolve({
-                err: !(projectResponse?.status === 1 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse?.reservationPrice !== reservationPrice)) && !(projectResponse?.status === 2 && (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() || projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse?.reservationPrice !== reservationPrice)) ? 0 : 1,
+                err: !((projectResponse?.status === 1 || projectResponse?.status === 2) && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse?.reservationPrice !== reservationPrice)) ? 0 : 1,
                 message: !projectResponse ?
                     `Project (${id}) does not exist!` :
                     projectResponse.status === 1 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
                         `Can not update Reservation Date or Reservation Price because Project(${id}) is already opened for reservation!`
-                        : projectResponse.status === 2 && (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() || projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
-                            `Can not update Reservation Date, Reservation Price, Open date or Close date because Project(${id}) is already opened for booking!`
-                            : `Update Reservation for Project (${id}) successfully.`
+                         : projectResponse.status === 2 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
+                             `Can not update Reservation Date, Reservation Price because Project(${id}) is already opened for booking!`
+                        : `Update Reservation for Project (${id}) successfully.`
             })
         } catch (error) {
             console.log(error);
@@ -1395,11 +1421,11 @@ export const getAllSoldReservationStageOfProject = ({
 export const statisticOnStage = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
-            let array =[]
+            let array = []
             const project = await db.TimeShareDate.findAll({
-                where : {
-                    projectID : id,
-                    status : 1
+                where: {
+                    projectID: id,
+                    status: 1
                 }
             })
             // date
@@ -1409,17 +1435,17 @@ export const statisticOnStage = (id) => {
                 let check = true
                 obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].closeDate)
                 //numberOfReservationTicketBought && numberOfTimeSharesBooked
-                const {count, rows} = await db.ReservationTicket.findAndCountAll({
-                    where : {
-                        reservationDate : project[i].reservationDate,
-                        projectID : id
+                const { count, rows } = await db.ReservationTicket.findAndCountAll({
+                    where: {
+                        reservationDate: project[i].reservationDate,
+                        projectID: id
                     }
                 })
                 obj.numberOfReservationTicketBought = count
                 let booked = 0
                 let ticketId = []
                 rows.forEach((item) => {
-                    if(item.status == 2) {
+                    if (item.status == 2) {
                         booked++
                         ticketId.push(item.id)
                     }
@@ -1427,20 +1453,20 @@ export const statisticOnStage = (id) => {
                 obj.numberOfTimeSharesBooked = booked
                 //numberOfTimeSharesPurchasedFailed && numberOfTimeSharesPurchasedSuccess
                 const booking = await db.Booking.findAll({
-                    where : {
-                        reservationTicketID : ticketId,
+                    where: {
+                        reservationTicketID: ticketId,
                     }
                 })
                 let accept = 0
                 let deny = 0
                 let revenue = 0
                 booking.forEach((item) => {
-                    if(item.status == 1){
-                        accept ++
+                    if (item.status == 1) {
+                        accept++
                         revenue += item.priceBooking
-                    }else if(item.status == -1){
-                        deny ++
-                    }else {
+                    } else if (item.status == -1) {
+                        deny++
+                    } else {
                         check = false
                     }
                 })
@@ -1449,14 +1475,14 @@ export const statisticOnStage = (id) => {
                 obj.numberOfTimeSharesPurchasedFailed = deny
                 obj.numberOfTimeSharesPurchasedSuccess = accept
                 obj.revenue = revenue
-                if(check) array.push(obj)
+                if (check) array.push(obj)
             }
             resolve({
                 err: array.length !== 0 ? 0 : 1,
-                mess: array.length === 0 ? 
-                `Project (${id}) does not have enough information for statistic!`
-                 : `Project (${id})'s statistic.`,
-                data : array
+                mess: array.length === 0 ?
+                    `Project (${id}) does not have enough information for statistic!`
+                    : `Project (${id})'s statistic.`,
+                data: array
             })
         } catch (error) {
             console.log(error);

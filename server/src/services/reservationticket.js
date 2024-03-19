@@ -446,6 +446,61 @@ export const checkPriority = (id) => {
                         }
                     })
                     if (reservationInProject.length !== 0) {
+                        //Update status for Project, TimeShare and TimeShareDate
+                        //Update Project Status to 3
+                        await db.Project.update({
+                            status: 3
+                        }, {
+                            where: {
+                                id
+                            }
+                        })
+
+                        //Update TimeShare status to 0
+                        // Fetch records that need to be updated
+                        const timeSharesToUpdate = await db.TimeShare.findAll({
+                            include: [
+                                {
+                                    model: db.TypeRoom,
+                                    required: true,
+                                    include: {
+                                        model: db.TypeOfProject,
+                                        required: true,
+                                        as: 'TypeOfProject',
+                                        where: {
+                                            projectID: id,
+                                        },
+                                    },
+                                },
+                                {
+                                    model: db.TimeShareDate,
+                                    where: {
+                                        id: timeShareDatesResponse.id
+                                    }
+                                }
+                            ],
+                        });
+                        if (timeSharesToUpdate.length !== 0) {
+                            // Perform updates in memory
+                            timeSharesToUpdate.forEach((timeShare) => {
+                                timeShare.saleStatus = 0;
+                            });
+
+                            // Save changes back to the database
+                            await Promise.all(timeSharesToUpdate.map((timeShare) => timeShare.save()));
+                        }
+
+                        //Update TimeShareDate to 1
+                        await db.TimeShareDate.update({
+                            status: 1
+                        }, {
+                            where: {
+                                projectID: id,
+                                status: 0
+                            }
+                        })
+
+
                         ticketResponse = await db.ReservationTicket.findAll({
                             include: [
                                 {
@@ -644,60 +699,6 @@ export const checkPriority = (id) => {
                                 user.refundHistoryID = ticketFailedResponse[i].User.refundHistoryID;
                                 userNoPriority.push(user);
                             }
-
-                            //Update status for Project, TimeShare and TimeShareDate
-                            //Update Project Status to 3
-                            await db.Project.update({
-                                status: 3
-                            }, {
-                                where: {
-                                    id
-                                }
-                            })
-
-                            //Update TimeShare status to 0
-                            // Fetch records that need to be updated
-                            const timeSharesToUpdate = await db.TimeShare.findAll({
-                                include: [
-                                    {
-                                        model: db.TypeRoom,
-                                        required: true,
-                                        include: {
-                                            model: db.TypeOfProject,
-                                            required: true,
-                                            as: 'TypeOfProject',
-                                            where: {
-                                                projectID: id,
-                                            },
-                                        },
-                                    },
-                                    {
-                                        model: db.TimeShareDate,
-                                        where: {
-                                            id: timeShareDatesResponse.id
-                                        }
-                                    }
-                                ],
-                            });
-                            if (timeSharesToUpdate.length !== 0) {
-                                // Perform updates in memory
-                                timeSharesToUpdate.forEach((timeShare) => {
-                                    timeShare.saleStatus = 0;
-                                });
-
-                                // Save changes back to the database
-                                await Promise.all(timeSharesToUpdate.map((timeShare) => timeShare.save()));
-                            }
-
-                            //Update TimeShareDate to 1
-                            await db.TimeShareDate.update({
-                                status: 1
-                            }, {
-                                where: {
-                                    projectID: id,
-                                    status: 0
-                                }
-                            })
                         }
                     }
                 }
