@@ -28,6 +28,14 @@ export const rejectBooking = ({
                             reservationTicketID: ticket.id
                         }
                     })
+
+                    await db.TimeShare.update({
+                        quantity: timeShareResponse.quantity + 1
+                    }, {
+                        where: {
+                            id: timeShareID,
+                        }
+                    })
                 }
             }
             resolve({

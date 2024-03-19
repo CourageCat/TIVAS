@@ -866,52 +866,52 @@ export const updateBooking = ({
                         }
                     })
 
-                    if(projectResponse.status === 1){
+                    if (projectResponse.status === 1) {
 
-                    const user = await db.ReservationTicket.findAll({
-                        where: {
-                            projectID: id,
-                            status: 1
-                        }
-                    })
-                    const result = Object.groupBy(user, ({ userID }) => userID)
-                    let count1 = 0
-                    for (let properties in result) {
-                        count1 = count1 + 1
-                    }
-                    for (let i = 0; i < count1; i++) {
-                        const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
-                        let transporter = nodemailer.createTransport({
-                            service: "gmail",
-                            auth: {
-                                user: process.env.GOOGE_APP_EMAIL,
-                                pass: process.env.GOOGLE_APP_PASSWORD,
-                            },
-                        });
-                        let mailOptions = {
-                            from: "Tivas",
-                            to: `${user1.email}`,
-                            subject: "Confirm received email",
-                            text: projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() ?
-                                `Open date of ${projectResponse.name} is move to ${openDate} and Close date of ${projectResponse.name} is move to ${closeDate}`
-                                : projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() ?
-                                    `Open date of ${projectResponse.name} is move to ${openDate}`
-                                    : `Close date of ${projectResponse.name} is move to ${closeDate}`
-
-                        };
-                        console.log(user1.id);
-                        transporter.sendMail(mailOptions, function (error, info) {
-                            if (error) {
-                                console.log(error);
-                            } else {
-                                console.log("Email sent: " + info.response);
+                        const user = await db.ReservationTicket.findAll({
+                            where: {
+                                projectID: id,
+                                status: 1
                             }
-                        });
+                        })
+                        const result = Object.groupBy(user, ({ userID }) => userID)
+                        let count1 = 0
+                        for (let properties in result) {
+                            count1 = count1 + 1
+                        }
+                        for (let i = 0; i < count1; i++) {
+                            const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
+                            let transporter = nodemailer.createTransport({
+                                service: "gmail",
+                                auth: {
+                                    user: process.env.GOOGE_APP_EMAIL,
+                                    pass: process.env.GOOGLE_APP_PASSWORD,
+                                },
+                            });
+                            let mailOptions = {
+                                from: "Tivas",
+                                to: `${user1.email}`,
+                                subject: "Confirm received email",
+                                text: projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() ?
+                                    `Open date of ${projectResponse.name} is move to ${openDate} and Close date of ${projectResponse.name} is move to ${closeDate}`
+                                    : projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() ?
+                                        `Open date of ${projectResponse.name} is move to ${openDate}`
+                                        : `Close date of ${projectResponse.name} is move to ${closeDate}`
+
+                            };
+                            console.log(user1.id);
+                            transporter.sendMail(mailOptions, function (error, info) {
+                                if (error) {
+                                    console.log(error);
+                                } else {
+                                    console.log("Email sent: " + info.response);
+                                }
+                            });
+                        }
+
                     }
-                    
                 }
             }
-        }
             resolve({
                 err: !(projectResponse.status === 2 && (projectResponse.openDate.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate.getTime() !== convertDate(closeDate).getTime())) ? 0 : 1,
                 mess: !projectResponse ?
@@ -932,33 +932,47 @@ export const openReservationTicket = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
             const message = [];
+            let timeShareResponse = [];
             const dateNow = new Date().toDateString()
             const check = await db.Project.findByPk(id)
             if (check) {
-                if (check.status !== 1) {
+                if (check.status === 0) {
+                    const timeShareDateResponse = await db.TimeShareDate.findOne({
+                        where: {
+                            projectID: id,
+                        },
+                        order: [['id', 'DESC']]
+                    })
+                    console.log(timeShareDateResponse.id);
+                    timeShareResponse = await db.TimeShare.findAll({
+                        where: {
+                            timeShareDateID: timeShareDateResponse.id,
+                        }
+                    })
                     // if(check.reservationDate !== dateNow){
                     //     message.push("not in the time to buy")
                     // }else{
-                    await db.Project.update({
-                        status: 1,
-                    }, {
-                        where: {
-                            id
-                        }
-                    })
-                    message.push("You can buy reservation ticket now")
+                    if (timeShareResponse.length !== 0) {
+                        await db.Project.update({
+                            status: 1,
+                        }, {
+                            where: {
+                                id
+                            }
+                        })
+                    }
                     // }
-                } else {
-                    message.push(`Project (${id}) is already opened for reservation!`)
-
                 }
-            } else {
-                message.push(`Project (${id}) does not exist`)
-
             }
             resolve({
-                err: (check && check.status !== 1) ? 0 : 1,
-                mess: (check && check.status !== 1) ? message[0] : message[0]
+                err: timeShareResponse.length !== 0 ? 0 : 1,
+                mess: !check ?
+                `Project (${id}) does not exist!`
+                : check.status !== 0 ? 
+                `Project (${id}) has already opened for reservation`
+                : timeShareResponse.length === 0 ?
+                `Project (${id}) does not have any TimeShares!`
+                : `You can buy reservation ticket in Project (${id}) now`
             })
         } catch (error) {
             console.log(error);
@@ -1246,9 +1260,9 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice })
                     `Project (${id}) does not exist!` :
                     projectResponse.status === 1 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
                         `Can not update Reservation Date or Reservation Price because Project(${id}) is already opened for reservation!`
-                         : projectResponse.status === 2 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
-                             `Can not update Reservation Date, Reservation Price because Project(${id}) is already opened for booking!`
-                        : `Update Reservation for Project (${id}) successfully.`
+                        : projectResponse.status === 2 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
+                            `Can not update Reservation Date, Reservation Price because Project(${id}) is already opened for booking!`
+                            : `Update Reservation for Project (${id}) successfully.`
             })
         } catch (error) {
             console.log(error);
@@ -1483,6 +1497,96 @@ export const statisticOnStage = (id) => {
                     `Project (${id}) does not have enough information for statistic!`
                     : `Project (${id})'s statistic.`,
                 data: array
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+    })
+}
+
+export const getAllProjectSold = () => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let response = [];
+            let pageInput = 1;
+            let countPages = 0;
+            let queries = pagination({ page, limit, orderType, orderBy });
+            const projectResponsePagination = await db.TimeShareDate.findAll({
+                attributes: ['projectID'],
+                include: {
+                    model: db.Project
+                },
+                group: ['projectID']
+            })
+            countPages = projectResponsePagination.length !== 0 ? 1 : 0;
+            if (projectResponsePagination.length / queries.limit > 1) {
+                countPages = Math.ceil(
+                    projectResponsePagination.length / queries.limit
+                );
+            }
+            if (page) {
+                pageInput = page;
+            }
+
+            if (pageInput <= countPages) {
+                const projectResponse = await db.TimeShareDate.findAll({
+                    attributes: ['projectID'],
+                    include: {
+                        model: db.Project,
+                        include: {
+                            model: db.Location,
+                            attributes: ['id', 'name']
+                        },
+                    },
+                    group: ['projectID'],
+                    ...queries,
+                })
+                if (projectResponse.length !== 0) {
+                    for (let i = 0; i < projectResponse.length; i++) {
+                        let project = {};
+                        project.id = projectResponse[i].Project.id
+                        project.name = projectResponse[i].Project.name
+                        project.thumbnailPathUrl = projectResponse[i].Project.thumbnailPathUrl
+                        project.buildingStatus = projectResponse[i].Project.buildingStatus
+                        project.locationID = projectResponse[i].Project.Location.id
+                        project.location = projectResponse[i].Project.Location.name
+                        project.numberOfSoldStage = projectResponse[i].Project.name
+                        project.number = projectResponse[i].Project.name
+                        project.name = projectResponse[i].Project.name
+                    }
+                }
+            }
+
+
+            // const projectResponse = await db.Project.findAll({
+            //     attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID'],
+            //     include: [
+            //         {
+            //             required: true,
+            //             model: db.TimeShareDate,
+            //             where: {
+            //                 status: 1,
+            //             },
+            //         },
+            //         {
+            //             model: db.Location,
+            //             attributes: ['id', 'name']
+            //         },
+            //     ],
+            // })
+            // const result = Object.groupBy((projectResponse), ({ id }) => id)
+            // let count1 = 0
+            // for (let properties in result) {
+            //     count1 = count1 + 1
+            // }
+            // for (let i = 0; i < count1; i++) {
+            //     response.push(result[Object.getOwnPropertyNames(result)[i]][0])
+            // }
+            resolve({
+                err: response.length !== 0 ? 0 : 1,
+                message: response.length !== 0 ? `All Projects have Sold Stage.` : `Can not find any Project that have Sold Stage`,
+                data: response.length !== 0 ? response : null
             })
         } catch (error) {
             console.log(error);

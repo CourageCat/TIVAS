@@ -270,3 +270,8 @@ export const statisticOnStage = async (req, res) => {
   const response = await services.statisticOnStage(id);
   return res.status(200).json(response);
 };
+
+export const getAllProjectSold = async (req, res) => {
+  const response = await services.getAllProjectSold();
+  return res.status(200).json(response);
+}
