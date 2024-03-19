@@ -242,4 +242,9 @@ export const updateOrdering = async (req, res) => {
 export const getAllInReservation = async (req, res) => {
   const response = await services.getAllInReservation(req.query);
   return res.status(200).json(response);
+};
+
+export const getAllSoldReservationStageOfProject = async (req, res) => {
+  const response = await services.getAllSoldReservationStageOfProject(req.query);
+  return res.status(200).json(response);
 }

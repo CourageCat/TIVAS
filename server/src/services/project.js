@@ -15,6 +15,23 @@ const convertDate = (dateString) => {
     return date;
 }
 
+function formatDate(date) {
+    // Ensure 'date' is a valid Date object
+    if (!(date instanceof Date)) {
+        date = new Date(date);
+    }
+
+    // Get day, month, and year
+    const day = date.getDate().toString().padStart(2, "0");
+    const month = (date.getMonth() + 1).toString().padStart(2, "0"); // Months are zero-based
+    const year = date.getFullYear();
+
+    // Create the formatted date string
+    const formattedDate = `${day}/${month}/${year}`;
+
+    return formattedDate;
+}
+
 const deleteProjectImage = (fileData) => {
     if (fileData.thumbnail) {
         for (let i = 0; i < fileData.thumbnail.length; i++) {
@@ -421,7 +438,7 @@ export const updateProject = ({
     })
 }
 
-export const searchProject = ({ info, searchBy, page, limit, orderBy, orderType, type}) => {
+export const searchProject = ({ info, searchBy, page, limit, orderBy, orderType, type }) => {
     return new Promise(async (resolve, reject) => {
         try {
             let response = [];
@@ -1264,7 +1281,7 @@ export const getAllInReservation = ({
             }
 
             //Pagination
-            if(pageInput <= countPages){
+            if (pageInput <= countPages) {
                 projectResponse = await db.Project.findAll({
                     attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID'],
                     include: {
@@ -1276,8 +1293,8 @@ export const getAllInReservation = ({
                     },
                     ...queries
                 })
-                if(projectResponse.length !== 0){
-                    for(let i = 0; i <  projectResponse.length; i++){
+                if (projectResponse.length !== 0) {
+                    for (let i = 0; i < projectResponse.length; i++) {
                         projectResponse[i].location = projectResponse[i].Location.name;
                         if (projectResponse[i].features) {
                             projectResponse[i].features = projectResponse[i].features.split(',');
@@ -1293,6 +1310,78 @@ export const getAllInReservation = ({
                 message: projectResponse.length === 0 ? 'Can not find nay Project being on Open Reservation Stage!' : 'All Projects being on Open Reservation Stage.',
                 data: projectResponse,
                 count: projectResponse.length,
+                countPages: countPages,
+                page: pageInput
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+    })
+}
+
+export const getAllSoldReservationStageOfProject = ({
+    projectID,
+    page,
+    limit,
+    orderBy,
+    orderType
+}) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let response = [];
+            let pageInput = 1;
+            let countPages = 0;
+            let queries = pagination({ page, limit, orderType, orderBy });
+            const projectResponse = await db.Project.findByPk(projectID);
+            if (projectResponse) {
+                const timeShareDateResponsePagination = await db.TimeShareDate.findAll({
+                    where: {
+                        projectID,
+                        status: 1,
+                    }
+                })
+
+                countPages = timeShareDateResponsePagination.length !== 0 ? 1 : 0;
+                if (timeShareDateResponsePagination.length / queries.limit > 1) {
+                    countPages = Math.ceil(
+                        timeShareDateResponsePagination.length / queries.limit
+                    );
+                }
+                if (page) {
+                    pageInput = page;
+                }
+                if (pageInput <= countPages) {
+                    const timeShareDateResponse = await db.TimeShareDate.findAll({
+                        where: {
+                            projectID,
+                            status: 1,
+                        },
+                        ...queries
+                    })
+                    if (timeShareDateResponse.length !== 0) {
+                        for (let i = 0; i < timeShareDateResponse.length; i++) {
+                            const timeShareDate = {};
+                            timeShareDate.id = timeShareDateResponse[i].id;
+                            timeShareDate.date = `${formatDate(timeShareDateResponse[i].reservationDate)} - ${formatDate(timeShareDateResponse[i].closeDate)}`;
+                            timeShareDate.reservationPrice = timeShareDateResponse[i].reservationPrice;
+                            timeShareDate.reservationDate = formatDate(timeShareDateResponse[i].reservationDate);
+                            timeShareDate.openDate = formatDate(timeShareDateResponse[i].openDate);
+                            timeShareDate.closeDate = formatDate(timeShareDateResponse[i].closeDate);
+                            response.push(timeShareDate);
+                        }
+                    }
+                }
+            }
+            resolve({
+                err: response.length !== 0 ? 0 : 1,
+                message: !projectResponse ?
+                    `Project (${projectID}) does not exist!`
+                    : response.length === 0 ?
+                        `Project (${projectID}) does not have any Sold Reservation Stage`
+                        : `All Sold Reservation Stage of Project (${projectID})`,
+                data: response,
+                count: response.length,
                 countPages: countPages,
                 page: pageInput
             })

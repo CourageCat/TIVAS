@@ -113,6 +113,16 @@ export const getAllTimeShareOfProjectByStaff = async (req, res) => {
   return res.status(200).json(response);
 };
 
+export const getAllTimeShareOfSoldReservationStage = async (req, res) => {
+  const response = await services.getAllTimeShareOfSoldReservationStage(req.query);
+  return res.status(200).json(response);
+}
+
+export const getAllUserPurchasedTimeShare = async (req, res) => {
+  const response = await services.getAllUserPurchasedTimeShare(req.query);
+  return res.status(200).json(response);
+}
+
 export const getDetailsTimeShareByStaff = async (req, res) => {
   const response = await services.getDetailsTimeShareByStaff(req.query);
   return res.status(200).json(response);
