@@ -407,12 +407,12 @@ export const viewwishlist = ({ id, page, limit, orderBy, orderType }) => {
 export const deletewishlist = ({ id, projectID }) => {
   return new Promise(async (resolve, reject) => {
     try {
-        const wishList = await db.WishList.destroy({
-          where: {
-            userID: id,
-            projectID: projectID
-          }
-        })
+      const wishList = await db.WishList.destroy({
+        where: {
+          userID: id,
+          projectID: projectID
+        }
+      })
       resolve({
         err: wishList ? 0 : 1,
         mess: !wishList ? `Project (${projectID}) does not belong to User (${id})!` : "Delete project from wishlist successfully."
@@ -456,17 +456,23 @@ export const checkProjectWishlist = ({ id, projectID }) => {
   })
 }
 
-export const getHistory = (id) => {
+export const getHistory = ({
+  id,
+  status,
+  page,
+  limit,
+  orderBy,
+  orderType
+}) => {
   return new Promise(async (resolve, reject) => {
     try {
-      let response = {};
-      response.BookedFailed = [];
-      response.PurchasedFailed = [];
-      response.PurchasedSuccess = [];
+      let response = [];
+      let pageInput = 1;
+      let countPages = 0;
+      let queries = pagination({ page, limit, orderType, orderBy });
       const userResponse = await db.User.findByPk(id);
-      let ticketResponse = [];
       if (userResponse) {
-        ticketResponse = await db.ReservationTicket.findAll({
+        const ticketResponsePagination = await db.ReservationTicket.findAll({
           attributes: { exclude: ['createdAt', 'updatedAt'] },
           include: [
             {
@@ -492,62 +498,140 @@ export const getHistory = (id) => {
 
               ]
             },
-            {
-              model: db.Booking,
-              attributes: ['id', 'status', 'createdAt', 'updatedAt'],
-            },
+            (+status === 2 || +status === 3) ?
+              {
+                model: db.Booking,
+                attributes: ['id', 'status', 'createdAt', 'updatedAt'],
+                where: parseInt(status) === 2 ? {
+                  status: 1
+                } : {
+                  status: -1
+                }
+              } : {
+                model: db.Booking,
+                attributes: ['id', 'status'],
+              },
           ],
-          where: {
+          where: (+status === 1) ? {
             userID: id,
+            status: 1,
+            refund: 1,
+          } : {
+            userID: id,
+            status: 2
           }
         })
-      }
-      for (let i = 0; i < ticketResponse.length; i++) {
-        const ticket = {}
-        ticket.reservationID = ticketResponse[i].id
-        ticket.code = ticketResponse[i].code;
-        ticket.projectID = ticketResponse[i].Project.id
-        ticket.projectName = ticketResponse[i].Project.name;
-        ticket.projectThumbnailPathUrl = ticketResponse[i].Project.thumbnailPathUrl;
-        ticket.location = ticketResponse[i].Project.Location.name
-        if (ticketResponse[i].refundDate) {
-          if (ticketResponse[i].TimeShare) {
-            ticket.typeRoomID = ticketResponse[i].TimeShare.TypeRoom.id
-            ticket.typeRoomName = ticketResponse[i].TimeShare.TypeRoom.name
-            ticket.timeShareID = ticketResponse[i].TimeShare.id
-            ticket.startDate = ticketResponse[i].TimeShare.startDate;
-            ticket.endDate = ticketResponse[i].TimeShare.endDate;
-            ticket.price = ticketResponse[i].TimeShare.price;
-            ticket.refund = ticketResponse[i].refund;
-            ticket.refundDate = ticketResponse[i].refundDate;
-            ticket.bookingTimeShareDate = ticketResponse[i].bookingDate
-          } else {
-            ticket.refund = ticketResponse[i].refund;
-            ticket.refundDate = ticketResponse[i].refundDate;
-            ticket.reservatedProjectDate = ticketResponse[i].createdAt
-          }
-          response.BookedFailed.push(ticket);
+
+        countPages = ticketResponsePagination.length !== 0 ? 1 : 0;
+        if (ticketResponsePagination.length / queries.limit > 1) {
+          countPages = Math.ceil(
+            ticketResponsePagination.length / queries.limit
+          );
         }
-        if (ticketResponse[i].status === 2) {
-          ticket.bookingStatus = ticketResponse[i].Booking.status;
-          if (ticketResponse[i].Booking.status === 1) {
-            ticket.purchasedSuccessDate = ticketResponse[i].Booking.updatedAt
-            response.PurchasedSuccess.push(ticket);
-          }
-          if (ticketResponse[i].Booking.status === -1) {
-            ticket.purchasedFailedDate = ticketResponse[i].Booking.updatedAt
-            response.PurchasedFailed.push(ticket);
+        if (page) {
+          pageInput = page;
+        }
+        if (pageInput <= countPages) {
+          const ticketResponse = await db.ReservationTicket.findAll({
+            attributes: { exclude: ['createdAt', 'updatedAt'] },
+            include: [
+              {
+                model: db.User,
+                attributes: ['id', 'username']
+              },
+              {
+                model: db.Project,
+                attributes: ['id', 'name', 'thumbnailPathUrl', 'status'],
+                include: {
+                  model: db.Location,
+                  attributes: ['id', 'name'],
+                }
+              },
+              {
+                model: db.TimeShare,
+                attributes: ['id', 'startDate', 'endDate', 'price'],
+                include: [
+                  {
+                    model: db.TypeRoom,
+                    atributes: ['id', 'name'],
+                  },
+
+                ]
+              },
+              (+status === 2 || +status === 3) ?
+                {
+                  model: db.Booking,
+                  attributes: ['id', 'status', 'createdAt', 'updatedAt'],
+                  where: parseInt(status) === 2 ? {
+                    status: 1
+                  } : {
+                    status: -1
+                  }
+                } : {
+                  model: db.Booking,
+                  attributes: ['id', 'status'],
+                },
+            ],
+            where: (+status === 1) ? {
+              userID: id,
+              status: 1,
+              refund: 1,
+            } : {
+              userID: id,
+              status: 2
+            }
+          })
+          for (let i = 0; i < ticketResponse.length; i++) {
+            const ticket = {}
+            ticket.reservationID = ticketResponse[i].id
+            ticket.code = ticketResponse[i].code;
+            ticket.projectID = ticketResponse[i].Project.id
+            ticket.projectName = ticketResponse[i].Project.name;
+            ticket.projectThumbnailPathUrl = ticketResponse[i].Project.thumbnailPathUrl;
+            ticket.location = ticketResponse[i].Project.Location.name
+            if (ticketResponse[i].TimeShare) {
+              ticket.typeRoomID = ticketResponse[i].TimeShare.TypeRoom.id
+              ticket.typeRoomName = ticketResponse[i].TimeShare.TypeRoom.name
+              ticket.timeShareID = ticketResponse[i].TimeShare.id
+              ticket.startDate = ticketResponse[i].TimeShare.startDate;
+              ticket.endDate = ticketResponse[i].TimeShare.endDate;
+              ticket.price = ticketResponse[i].TimeShare.price;
+              if (+status === 1) {
+                ticket.refund = ticketResponse[i].refund;
+                ticket.refundDate = ticketResponse[i].refundDate;
+                ticket.bookingTimeShareDate = ticketResponse[i].bookingDate
+              }
+            } else {
+              if (+status === 1) {
+                ticket.refund = ticketResponse[i].refund;
+                ticket.refundDate = ticketResponse[i].refundDate;
+                ticket.reservatedProjectDate = ticketResponse[i].createdAt
+              }
+            }
+            if (+status === 2 || +status === 3) {
+              ticket.bookingStatus = ticketResponse[i].Booking.status;
+              if (+status === 2) {
+                ticket.purchasedSuccessDate = ticketResponse[i].Booking.updatedAt
+              }
+              if (+status === 3) {
+                ticket.purchasedFailedDate = ticketResponse[i].Booking.updatedAt
+              }
+            }
+            response.push(ticket);
           }
         }
       }
       resolve({
-        err: (response.BookedFailed !== 0 || response.PurchasedSuccess !== 0 || response.PurchasedFailed !== 0) ? 0 : 1,
+        err: (response.length !== 0) ? 0 : 1,
         message: !userResponse ?
           `User (${id}) does not exist!` :
-          (response.BookedFailed === 0 && response.PurchasedSuccess === 0 && response.PurchasedFailed === 0) ?
+          (response.length === 0) ?
             `Can not find any history of User (${id})!`
             : `User (${id})'s purchased history`,
-        data: response
+        data: response,
+        count: response.length,
+        countPages: countPages,
+        page: pageInput
       })
     } catch (error) {
       console.log(error);

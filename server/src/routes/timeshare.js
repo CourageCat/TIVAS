@@ -33,6 +33,16 @@ router.get(
 )
 
 router.get(
+    "/getAllOfSoldReservationStage",
+    controllers.getAllTimeShareOfSoldReservationStage
+)
+
+router.get(
+    "/getAllUserPurchasedTimeShare",
+    controllers.getAllUserPurchasedTimeShare
+)
+
+router.get(
     "/:id",
     controllers.getDetailsTimeShare,
 )

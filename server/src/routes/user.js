@@ -31,5 +31,5 @@ router.post("/addwishlist", controllers.addWishlist)
 router.get("/viewwishlist", controllers.viewwishlist)
 router.delete("/deletewishlist", controllers.deletewishlist)
 router.get("/checkprojectwishlist", controllers.checkProjectWishlist)
-router.get("/getHistory/:id", controllers.getHistory)
+router.get("/getHistory", controllers.getHistory)
 export default router;
