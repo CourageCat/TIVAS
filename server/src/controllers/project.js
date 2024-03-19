@@ -154,7 +154,7 @@ export const getDetailsProject = async (req, res) => {
 
 export const getTypeOfProject = async (req, res) => {
   const { id } = req.params;
-  const response = await services.getTypeOfProject(id); 
+  const response = await services.getTypeOfProject(id);
   return res.status(200).json(response);
 }
 
@@ -196,29 +196,45 @@ export const getReservation = async (req, res) => {
 export const updateReservationInfo = async (req, res) => {
   const { id } = req.params;
   const { reservationDate, reservationPrice, openDate, closeDate } = req.body;
-  if (!reservationDate || !reservationPrice || !openDate || !closeDate) {
+  if (!reservationDate || !reservationPrice) {
     return missValue("Missing value!", res);
   }
   const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
   if (
-    !dateRegex.test(reservationDate) ||
-    !dateRegex.test(openDate) ||
-    !dateRegex.test(closeDate)
+    !dateRegex.test(reservationDate)
   ) {
     return badRequest(
-      "Reservation Date, Open Date or Close Date must be like (dd/mm/yyyy) format!",
+      "Reservation Date must be like (dd/mm/yyyy) format!",
       res
     );
   }
   if (
-    !isValidDate(reservationDate) ||
-    !isValidDate(openDate) ||
-    !isValidDate(closeDate)
+    !isValidDate(reservationDate)
   ) {
     return badRequest(
       "Reservation Date, Open Date or Close Date must be a valid date!",
       res
     );
+  }
+  if (openDate && closeDate) {
+    if (
+      !dateRegex.test(openDate) ||
+      !dateRegex.test(closeDate)
+    ) {
+      return badRequest(
+        "Open Date or Close Date must be like (dd/mm/yyyy) format!",
+        res
+      );
+    }
+    if (
+      !isValidDate(openDate) ||
+      !isValidDate(closeDate)
+    ) {
+      return badRequest(
+        "Open Date or Close Date must be a valid date!",
+        res
+      );
+    }
   }
   if (!/\b\d+(\.\d+)?\b/g.test(reservationPrice)) {
     return badRequest("Reservation Price is required a NUMBER!");
@@ -248,3 +264,9 @@ export const getAllSoldReservationStageOfProject = async (req, res) => {
   const response = await services.getAllSoldReservationStageOfProject(req.query);
   return res.status(200).json(response);
 }
+
+export const statisticOnStage = async (req, res) => {
+  const { id } = req.params
+  const response = await services.statisticOnStage(id);
+  return res.status(200).json(response);
+};

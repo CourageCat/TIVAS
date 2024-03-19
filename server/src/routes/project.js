@@ -54,7 +54,7 @@ router.get(
 )
 
 //thay doi openDate va closeDate
-router.put("/changeBookingInfo/:id",controllers.updateBooking)
+router.put("/updateBooking/:id",controllers.updateBooking)
 //thay doi reservationPrice va reservationDate
 router.put("/changeReservationInfo/:id",controllers.updateReservation)
 //mo ban reservation ticket (status=2)
@@ -77,10 +77,11 @@ router.get(
   controllers.getAllSoldReservationStageOfProject
 )
 
+router.get("/statisticOnStage/:id", controllers.statisticOnStage)
+
 router.get(
   "/:id",
   controllers.getDetailsProject
 )
-
 
 export default router;

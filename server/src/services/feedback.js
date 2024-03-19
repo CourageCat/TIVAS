@@ -160,6 +160,7 @@ export const getAllFeedBackByAdmin = ({
 export const updateShowFeedBack = (feedBackID) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let feedBackPosted = 0;
             const feedBackResponse = await db.FeedBack.findOne({
                 where: {
                     id: feedBackID
@@ -167,13 +168,23 @@ export const updateShowFeedBack = (feedBackID) => {
             })
             if (feedBackResponse) {
                 if (feedBackResponse.status === 0) {
-                    await db.FeedBack.update({
-                        status: 1
-                    }, {
+                    const { count, rows } = await db.FeedBack.findAndCountAll({
                         where: {
-                            id: feedBackID
+                            status: 1,
                         }
                     })
+
+                    feedBackPosted = count;
+
+                    if (feedBackPosted < 5) {
+                        await db.FeedBack.update({
+                            status: 1
+                        }, {
+                            where: {
+                                id: feedBackID
+                            }
+                        })
+                    }
                 } else {
                     await db.FeedBack.update({
                         status: 0
@@ -185,11 +196,13 @@ export const updateShowFeedBack = (feedBackID) => {
                 }
             }
             resolve({
-                err: feedBackResponse ? 0 : 1,
+                err: feedBackPosted < 5 ? 0 : 1,
                 mess: !feedBackResponse ? `Can not find FeedBack (${feedBackID})!`
-                    : feedBackResponse.status === 0 ?
-                        'Show feedback to Users successfully.'
-                        : 'Unshow feedback to Users successfully.'
+                    : feedBackPosted >= 5 ?
+                        'Can post only maximum for 5 feedbacks to Users'
+                        : feedBackResponse.status === 0 ?
+                            'Show feedback to Users successfully.'
+                            : 'Unshow feedback to Users successfully.'
             })
         } catch (error) {
             console.log(error);
@@ -218,6 +231,28 @@ export const showFeedBackToUser = () => {
         } catch (error) {
             console.log(error);
             reject(error);
+        }
+    })
+}
+
+export const deleteFeedBack = (id) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const feedbackResponse = await db.FeedBack.findByPk(id);
+            if(feedbackResponse){
+                await db.FeedBack.destroy({
+                    where: {
+                        id,
+                    }
+                })
+            }
+            resolve({
+                err: feedbackResponse ? 0 : 1,
+                message: !feedbackResponse ? `FeedBack (${id}) does not exist!` : 'Delete FeedBack successfully.',
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error)
         }
     })
 }
