@@ -446,60 +446,6 @@ export const checkPriority = (id) => {
                         }
                     })
                     if (reservationInProject.length !== 0) {
-                        //Update Project Status to 3
-                        await db.Project.update({
-                            status: 3
-                        }, {
-                            where: {
-                                id
-                            }
-                        })
-
-                        //Update TimeShare status to 0
-                        // Fetch records that need to be updated
-                        const timeSharesToUpdate = await db.TimeShare.findAll({
-                            include: [
-                                {
-                                    model: db.TypeRoom,
-                                    required: true,
-                                    include: {
-                                        model: db.TypeOfProject,
-                                        required: true,
-                                        as: 'TypeOfProject',
-                                        where: {
-                                            projectID: id,
-                                        },
-                                    },
-                                },
-                                {
-                                    model: db.TimeShareDate,
-                                    where: {
-                                        id: timeShareDatesResponse.id
-                                    }
-                                }
-                            ],
-                        });
-
-                        if (timeSharesToUpdate.length !== 0) {
-                            // Perform updates in memory
-                            timeSharesToUpdate.forEach((timeShare) => {
-                                timeShare.saleStatus = 0;
-                            });
-
-                            // Save changes back to the database
-                            await Promise.all(timeSharesToUpdate.map((timeShare) => timeShare.save()));
-                        }
-
-                        //Update TimeShareDate to 1
-                        await db.TimeShareDate.update({
-                            status: 1
-                        }, {
-                            where: {
-                                projectID: id,
-                                status: 0
-                            }
-                        })
-
                         ticketResponse = await db.ReservationTicket.findAll({
                             include: [
                                 {
@@ -529,10 +475,8 @@ export const checkPriority = (id) => {
                                 status: 1,
                                 reservationDate: timeShareDatesResponse.reservationDate,
                                 closeDate: timeShareDatesResponse.closeDate
-
                             }
                         })
-                        console.log(ticketResponse[0]);
                         if (ticketResponse.length !== 0) {
                             const result = Object.groupBy(ticketResponse, ({ timeShareID }) => timeShareID)
                             let count1 = 0
@@ -611,10 +555,155 @@ export const checkPriority = (id) => {
                                     }
                                 }
                             }
+                            const timeShareOnSale = await db.TimeShareDate.findOne({
+                                where: {
+                                    projectID: id,
+                                },
+                                order: [['id', 'DESC']]
+                            })
+                            const ticketFailedResponse = await db.ReservationTicket.findAll({
+                                nest: true,
+                                raw: true,
+                                attributes: ['id', 'userID', 'projectID', 'timeShareID', 'refund', 'reservationPrice'],
+                                include: [
+                                    {
+                                        model: db.User,
+                                        attributes: ['id', 'username', 'email', 'refundHistoryID']
+                                    },
+                                    {
+                                        model: db.Project,
+                                        attributes: ['id', 'name']
+                                    },
+                                    {
+                                        model: db.TimeShare,
+                                        atributes: ['id', 'startDate', 'endDate'],
+                                        include: [
+                                            {
+                                                model: db.TypeRoom,
+                                                attributes: ['id', 'name']
+                                            },
+                                        ]
+                                    },
+                                ],
+                                where: {
+                                    projectID: id,
+                                    status: 1,
+                                    reservationDate: timeShareOnSale?.reservationDate,
+                                    closeDate: timeShareOnSale?.closeDate,
+                                }
+                            })
+                            const userNoPriority = [];
+                            for (let i = 0; i < ticketFailedResponse.length; i++) {
+                                let transporter = nodemailer.createTransport({
+                                    service: "gmail",
+                                    auth: {
+                                        user: process.env.GOOGE_APP_EMAIL,
+                                        pass: process.env.GOOGLE_APP_PASSWORD,
+                                    },
+                                });
+                                let emailTemplatePath;
+                                let data;
+                                if (ticketFailedResponse[i].TimeShare.id) {
+                                    emailTemplatePath = "src/template/EmailFailed/index.ejs";
+                                    data = {
+                                        email: ticketFailedResponse[i].User.email,
+                                        projectName: ticketFailedResponse[i].Project.name,
+                                        typeRoomName: ticketFailedResponse[i].TimeShare?.TypeRoom.name,
+                                        startDate: formatDate(ticketFailedResponse[i].TimeShare?.startDate),
+                                        endDate: formatDate(ticketFailedResponse[i].TimeShare?.endDate),
+                                        reservationPrice: ticketFailedResponse[i].reservationPrice,
+                                    };
+                                } else {
+                                    emailTemplatePath = "src/template/EmailFailedNoTimeShare/index.ejs";
+                                    data = {
+                                        email: ticketFailedResponse[i].User.email,
+                                        projectName: ticketFailedResponse[i].Project.name,
+                                        reservationPrice: ticketFailedResponse[i].reservationPrice,
+                                    };
+                                }
+                                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+                                const renderedHtml = ejs.render(emailTemplate, data);
+
+                                let mailOptions = {
+                                    from: "Tivas",
+                                    to: `${ticketFailedResponse[i].User.email}`,
+                                    subject: "Confirm received email",
+                                    html: renderedHtml,
+                                };
+
+                                transporter.sendMail(mailOptions, function (error, info) {
+                                    if (error) {
+                                        console.log(error);
+                                    } else {
+                                        console.log("Email sent: " + info.response);
+                                    }
+                                });
+                                const user = {};
+                                user.id = ticketFailedResponse[i].User.id;
+                                user.username = ticketFailedResponse[i].User.username;
+                                user.refundHistoryID = ticketFailedResponse[i].User.refundHistoryID;
+                                userNoPriority.push(user);
+                            }
+
+                            //Update status for Project, TimeShare and TimeShareDate
+                            //Update Project Status to 3
+                            await db.Project.update({
+                                status: 3
+                            }, {
+                                where: {
+                                    id
+                                }
+                            })
+
+                            //Update TimeShare status to 0
+                            // Fetch records that need to be updated
+                            const timeSharesToUpdate = await db.TimeShare.findAll({
+                                include: [
+                                    {
+                                        model: db.TypeRoom,
+                                        required: true,
+                                        include: {
+                                            model: db.TypeOfProject,
+                                            required: true,
+                                            as: 'TypeOfProject',
+                                            where: {
+                                                projectID: id,
+                                            },
+                                        },
+                                    },
+                                    {
+                                        model: db.TimeShareDate,
+                                        where: {
+                                            id: timeShareDatesResponse.id
+                                        }
+                                    }
+                                ],
+                            });
+                            if (timeSharesToUpdate.length !== 0) {
+                                // Perform updates in memory
+                                timeSharesToUpdate.forEach((timeShare) => {
+                                    timeShare.saleStatus = 0;
+                                });
+
+                                // Save changes back to the database
+                                await Promise.all(timeSharesToUpdate.map((timeShare) => timeShare.save()));
+                            }
+
+                            //Update TimeShareDate to 1
+                            await db.TimeShareDate.update({
+                                status: 1
+                            }, {
+                                where: {
+                                    projectID: id,
+                                    status: 0
+                                }
+                            })
                         }
                     }
                 }
             }
+
+
             // const {count , rows} = await db.ReservationTicket.findAndCountAll({
             //     where : {
             //         status : 2
