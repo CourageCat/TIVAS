@@ -5,7 +5,7 @@ const router = express.Router();
 router.post("/paymentreservation", controllers.paymentReservation);
 router.post("/createTicket", controllers.createTicket);
 router.put("/activeTicket/:id", controllers.activeTicket);
-router.get("/checkPriority/:id/:type", controllers.checkPriority);
+router.put("/checkPriority", controllers.checkPriority);
 //router.get("/checkTicket", controllers.checkTicket)
 
 router.post("/createReservation", controllers.createReservation);

@@ -403,7 +403,7 @@ export const createReservation = ({
 //     })
 // }
 
-export const checkPriority = (id, type) => {
+export const checkPriority = ({id, type}) => {
     return new Promise(async (resolve, reject) => {
         try {
             let reservationInProject = [];
