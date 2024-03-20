@@ -722,7 +722,7 @@ export const getDetailsProject = (id) => {
                 if (projectResponse.TypeOfProjects.length !== 2) {
                     type = projectResponse.TypeOfProjects[0].Type.name
                 } else {
-                    type = "Villa and Hotel";
+                    type = "Villa & Hotel";
                 }
                 response.Project = {
                     id: projectResponse.id,
@@ -1818,10 +1818,10 @@ export const getAllReservation = ({
                         project.attractions = projectResponse[i].attractions;
                         project.location = projectResponse[i].Location.name;
                         let type;
-                        if (projectResponse.TypeOfProjects.length !== 2) {
-                            type = projectResponse.TypeOfProjects[0].Type.name
+                        if (projectResponse[i].TypeOfProjects.length !== 2) {
+                            type = projectResponse[i].TypeOfProjects[0].Type.name
                         } else {
-                            type = "Villa and Hotel";
+                            type = "Villa & Hotel";
                         }
                         project.typeOfProject = type
                         response.push(project);
