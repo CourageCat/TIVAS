@@ -1749,3 +1749,61 @@ export const getAllProjectSold = ({
         }
     })
 }
+
+export const getAllReservation = ({
+    page,
+    limit,
+    orderBy,
+    orderType
+}) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let response = [];
+            let pageInput = 1;
+            let countPages = 0;
+            let queries = pagination({ page, limit, orderType, orderBy });
+            const projectResponsePagination = await db.Project.findAll({
+                where: {
+                    status: {
+                        [Op.or]: [1, 2]
+                    }
+                }
+            })
+            console.log(projectResponsePagination);
+            countPages = projectResponsePagination.length !== 0 ? 1 : 0;
+            if (projectResponsePagination.length / queries.limit > 1) {
+                countPages = Math.ceil(
+                    projectResponsePagination.length / queries.limit
+                );
+            }
+            if (page) {
+                pageInput = page;
+            }
+            if(pageInput <= countPages){
+                response = await db.Project.findAll({
+                    attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID'],
+                    include: {
+                        model: db.Location,
+                        attributes: ['id', 'name']
+                    },
+                    where: {
+                        status: {
+                            [Op.or]: [1, 2]
+                        }
+                    },
+                    ...queries,
+                })
+            }
+            resolve({
+                err: (response.length !== 0) ? 0 : 1,
+                message: (response.length !== 0) ? `Get all of projects reservation` : 'Can not find any projects reservation!',
+                data: (response.length !== 0) ? response : null,
+                count: response.length,
+                countPages: countPages,
+                page: pageInput
+            })
+        } catch (error) {
+            console.log(error);
+        }
+    })
+}

@@ -82,6 +82,11 @@ router.get(
   controllers.getAllProjectSold
 )
 
+router.get(
+  "/getAllReservation",
+  controllers.getAllReservation
+)
+
 router.get("/statisticOnStage/:id", controllers.statisticOnStage)
 
 router.get(

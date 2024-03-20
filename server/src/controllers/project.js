@@ -278,3 +278,8 @@ export const getAllProjectSold = async (req, res) => {
   const response = await services.getAllProjectSold(req.query);
   return res.status(200).json(response);
 }
+
+export const getAllReservation = async (req, res) => {
+  const response = await services.getAllReservation(req.query);
+  return res.status(200).json(response);
+}
