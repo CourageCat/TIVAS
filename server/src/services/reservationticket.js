@@ -25,6 +25,7 @@ function formatDate(date) {
     return formattedDate;
 }
 
+
 export const paymentReservation = (username) => {
     return new Promise(async (resolve, reject) => {
         try {
@@ -407,6 +408,7 @@ export const checkPriority = (id) => {
         try {
             let reservationInProject = [];
             let ticketResponse = [];
+            const userNoPriority = [];
             const projectResponse = await db.Project.findByPk(id);
             if (projectResponse && projectResponse?.status !== 3) {
                 const timeShareDatesResponse = await db.TimeShareDate.findOne({
@@ -647,7 +649,6 @@ export const checkPriority = (id) => {
                                     closeDate: timeShareOnSale?.closeDate,
                                 }
                             })
-                            const userNoPriority = [];
                             for (let i = 0; i < ticketFailedResponse.length; i++) {
                                 let transporter = nodemailer.createTransport({
                                     service: "gmail",
