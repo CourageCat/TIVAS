@@ -393,7 +393,7 @@ export const createReservation = ({
 //     })
 // }
 
-export const checkPriority = (id) => {
+export const checkPriority = (id,type) => {
     return new Promise(async (resolve, reject) => {
         try {
             let ticketResponse = [];
@@ -481,84 +481,122 @@ export const checkPriority = (id) => {
                         status: 1
                     }
                 })
-                console.log(ticketResponse[0]);
                 if (ticketResponse.length !== 0) {
                     const result = Object.groupBy(ticketResponse, ({ timeShareID }) => timeShareID)
                     let count1 = 0
                     for (let properties in result) {
                         count1 = count1 + 1
                     }
+                    let random = []
+                    let chooseRandom = []
                     for (let i = 0; i < count1; i++) {
                         const quantityTimeshare = await db.TimeShare.findByPk(Object.getOwnPropertyNames(result)[i])
-                        for (let x = 0; x < quantityTimeshare.quantity; x++) {
-                            const reservation = result[Object.getOwnPropertyNames(result)[i]][x]
-                            if (reservation) {
-                                await db.ReservationTicket.update({
-                                    status: 2
-                                }, {
-                                    where: {
-                                        id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.id
-                                    }
-                                })
-                                await db.TimeShare.decrement({
-                                    quantity: 1
-                                }, {
-                                    where: {
-                                        id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.timeShareID
-                                    }
-                                })
-                                const timeShare = reservation.TimeShare;
-                                const user = reservation.User
-                                const project = reservation.Project
-                                const startDateDB = new Date(timeShare.updatedAt);
-                                const endDateDB = timeShare.updatedAt;
-                                endDateDB.setDate(endDateDB.getDate() + 7);
-                                await db.Booking.create({
-                                    startDate: startDateDB,
-                                    endDate: endDateDB,
-                                    status: 0,
-                                    priceBooking: timeShare.price - reservation.reservationPrice,
-                                    reservationTicketID: reservation.id,
-                                })
-                                let transporter = nodemailer.createTransport({
-                                    service: "gmail",
-                                    auth: {
-                                        user: process.env.GOOGE_APP_EMAIL,
-                                        pass: process.env.GOOGLE_APP_PASSWORD,
-                                    },
-                                });
-                                const emailTemplatePath = "src/template/EmailWinner/index.ejs";
-                                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+                        //choose random
+                        if(type == "random"){
+                            const code = await db.ReservationTicket.findAll({
+                                where : {
+                                    timeShareID : quantityTimeshare.id
+                                }
+                            })
+                            code.forEach((item) => {
+                                random.push(item.code)
+                            })
+                            //chooseRandom is array userchoose
+                            for (let i = 0; i < quantityTimeshare.quantity; i++) {
+                                var item = random[Math.floor(Math.random()*random.length)];
+                                let index = random.indexOf(item)
+                                random.splice(index,1)
+                                chooseRandom.push(item)
+                            }
+                            
+                            const codeUser = await db.ReservationTicket.findAll({
+                                where : {
+                                    code : chooseRandom
+                                }
+                            })
+                            let arrUser = []
+                            codeUser.forEach((item) => {
+                                arrUser.push(item.userID)
+                            })
+                            //user is all user is choose
+                            const user = await db.User.findAll({
+                                where : {
+                                    id: arrUser
+                                }
+                            })
 
-                                const data = {
-                                    email: user.email,
-                                    projectName: project.name,
-                                    typeRoomName: timeShare.TypeRoom.name,
-                                    startDate: formatDate(timeShare.startDate),
-                                    endDate: formatDate(timeShare.endDate),
-                                    reservationPrice: reservation.reservationPrice,
-                                    timeSharePrice: timeShare.price,
-                                    bookingPrice: timeShare.price - reservation.reservationPrice
-                                };
-
-                                const renderedHtml = ejs.render(emailTemplate, data);
-
-                                let mailOptions = {
-                                    from: "Tivas",
-                                    to: `${user.email}`,
-                                    subject: "Confirm received email",
-                                    html: renderedHtml,
-                                };
-
-                                transporter.sendMail(mailOptions, function (error, info) {
-                                    if (error) {
-                                        console.log(error);
-                                    } else {
-                                        console.log("Email sent: " + info.response);
-                                    }
-                                });
+                        }else {
+                            for (let x = 0; x < quantityTimeshare.quantity; x++) {
+                                const reservation = result[Object.getOwnPropertyNames(result)[i]][x]
+                                if (reservation) {
+                                    await db.ReservationTicket.update({
+                                        status: 2
+                                    }, {
+                                        where: {
+                                            id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.id
+                                        }
+                                    })
+                                    await db.TimeShare.decrement({
+                                        quantity: 1
+                                    }, {
+                                        where: {
+                                            id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.timeShareID
+                                        }
+                                    })
+                                    const timeShare = reservation.TimeShare;
+                                    const user = reservation.User
+                                    const project = reservation.Project
+                                    const startDateDB = new Date(timeShare.updatedAt);
+                                    const endDateDB = timeShare.updatedAt;
+                                    endDateDB.setDate(endDateDB.getDate() + 7);
+                                    await db.Booking.create({
+                                        startDate: startDateDB,
+                                        endDate: endDateDB,
+                                        status: 0,
+                                        priceBooking: timeShare.price - reservation.reservationPrice,
+                                        reservationTicketID: reservation.id,
+                                    })
+                                    let transporter = nodemailer.createTransport({
+                                        service: "gmail",
+                                        auth: {
+                                            user: process.env.GOOGE_APP_EMAIL,
+                                            pass: process.env.GOOGLE_APP_PASSWORD,
+                                        },
+                                    });
+                                    const emailTemplatePath = "src/template/EmailWinner/index.ejs";
+                                    const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+    
+                                    const data = {
+                                        email: user.email,
+                                        projectName: project.name,
+                                        typeRoomName: timeShare.TypeRoom.name,
+                                        startDate: formatDate(timeShare.startDate),
+                                        endDate: formatDate(timeShare.endDate),
+                                        reservationPrice: reservation.reservationPrice,
+                                        timeSharePrice: timeShare.price,
+                                        bookingPrice: timeShare.price - reservation.reservationPrice
+                                    };
+    
+                                    const renderedHtml = ejs.render(emailTemplate, data);
+    
+                                    let mailOptions = {
+                                        from: "Tivas",
+                                        to: `${user.email}`,
+                                        subject: "Confirm received email",
+                                        html: renderedHtml,
+                                    };
+    
+                                    transporter.sendMail(mailOptions, function (error, info) {
+                                        if (error) {
+                                            console.log(error);
+                                        } else {
+                                            console.log("Email sent: " + info.response);
+                                        }
+                                    });
+                                }
                             }
                         }
+                        
                     }
                     await db.TimeShareDate.update({
                         status: 1

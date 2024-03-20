@@ -73,8 +73,8 @@ export const createReservation = async (req, res) => {
 };
 
 export const checkPriority = async (req, res) => {
-  const { id } = req.params;
-  const response = await services.checkPriority(id);
+  const { id,type } = req.params;
+  const response = await services.checkPriority(id,type);
   return res.status(200).json(response);
 };
 
