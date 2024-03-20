@@ -971,6 +971,7 @@ export const openReservationTicket = (id) => {
                                 }
                             })
                             for (let i = 0; i < wishlist.length; i++) {
+                                console.log(wishlist[i].User.email);
                                 let transporter = nodemailer.createTransport({
                                     service: "gmail",
                                     auth: {
@@ -1779,13 +1780,21 @@ export const getAllReservation = ({
             if (page) {
                 pageInput = page;
             }
-            if(pageInput <= countPages){
-                response = await db.Project.findAll({
+            if (pageInput <= countPages) {
+                const projectResponse = await db.Project.findAll({
                     attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID'],
-                    include: {
-                        model: db.Location,
-                        attributes: ['id', 'name']
-                    },
+                    include: [
+                        {
+                            model: db.Location,
+                            attributes: ['id', 'name']
+                        },
+                        {
+                            model: db.TypeOfProject,
+                            include: {
+                                model: db.Type
+                            }
+                        }
+                    ],
                     where: {
                         status: {
                             [Op.or]: [1, 2]
@@ -1793,6 +1802,28 @@ export const getAllReservation = ({
                     },
                     ...queries,
                 })
+                if(projectResponse.length !== 0){
+                    for(let i = 0; i < projectResponse.length; i++){
+                        const project = {};
+                        project.id = projectResponse[i].id;
+                        project.name = projectResponse[i].name;
+                        project.thumbnailPathUrl = projectResponse[i].thumbnailPathUrl;
+                        project.status = projectResponse[i].status;
+                        project.buildingStatus = projectResponse[i].buildingStatus;
+                        project.reservationDate = formatDate(projectResponse[i].reservationDate);
+                        project.reservationPrice = projectResponse[i].reservationPrice;
+                        project.openDate = formatDate(projectResponse[i].openDate);
+                        project.closeDate = formatDate(projectResponse[i].closeDate);
+                        project.features = projectResponse[i].features;
+                        project.attractions = projectResponse[i].attractions;
+                        project.location = projectResponse[i].Location.name;
+                        project.typeOfProject = [];
+                        for (let j = 0; j < projectResponse[i].TypeOfProjects.length; j++) {
+                            project.typeOfProject.push(projectResponse[i].TypeOfProjects[j].Type.name)
+                        }
+                        response.push(project);
+                    }
+                }
             }
             resolve({
                 err: (response.length !== 0) ? 0 : 1,
