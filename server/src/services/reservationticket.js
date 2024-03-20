@@ -403,7 +403,7 @@ export const createReservation = ({
 //     })
 // }
 
-export const checkPriority = (id) => {
+export const checkPriority = (id, type) => {
     return new Promise(async (resolve, reject) => {
         try {
             let reservationInProject = [];
@@ -540,6 +540,45 @@ export const checkPriority = (id) => {
                             for (let properties in result) {
                                 count1 = count1 + 1
                             }
+                            let random = []
+                            let chooseRandom = []
+                            for (let i = 0; i < count1; i++) {
+                                const quantityTimeshare = await db.TimeShare.findByPk(Object.getOwnPropertyNames(result)[i])
+                                //choose random
+                                if (type == "random") {
+                                    const code = await db.ReservationTicket.findAll({
+                                        where: {
+                                            timeShareID: quantityTimeshare.id
+                                        }
+                                    })
+                                    code.forEach((item) => {
+                                        random.push(item.code)
+                                    })
+                                    //chooseRandom is array userchoose
+                                    for (let i = 0; i < quantityTimeshare.quantity; i++) {
+                                        var item = random[Math.floor(Math.random() * random.length)];
+                                        let index = random.indexOf(item)
+                                        random.splice(index, 1)
+                                        chooseRandom.push(item)
+                                    }
+
+                                    const codeUser = await db.ReservationTicket.findAll({
+                                        where: {
+                                            code: chooseRandom
+                                        }
+                                    })
+                                    let arrUser = []
+                                    codeUser.forEach((item) => {
+                                        arrUser.push(item.userID)
+                                    })
+                                    //user is all user is choose
+                                    const user = await db.User.findAll({
+                                        where: {
+                                            id: arrUser
+                                        }
+                                    })
+                                }
+                            }
                             for (let i = 0; i < count1; i++) {
                                 const quantityTimeshare = await db.TimeShare.findByPk(Object.getOwnPropertyNames(result)[i])
                                 for (let x = 0; x < quantityTimeshare.quantity; x++) {
@@ -612,6 +651,7 @@ export const checkPriority = (id) => {
                                     }
                                 }
                             }
+
                             const timeShareOnSale = await db.TimeShareDate.findOne({
                                 where: {
                                     projectID: id,
@@ -663,6 +703,7 @@ export const checkPriority = (id) => {
                                     closeDate: timeShareOnSale?.closeDate,
                                 }
                             })
+
                             for (let i = 0; i < ticketFailedResponse.length; i++) {
                                 //Update refundDate
                                 const check = await db.ReservationTicket.update({
@@ -729,9 +770,6 @@ export const checkPriority = (id) => {
                     }
                 }
             }
-
-
-
             // const {count , rows} = await db.ReservationTicket.findAndCountAll({
             //     where : {
             //         status : 2
@@ -1974,7 +2012,23 @@ export const getAllTicketsByAdmin = ({ id, status, page, limit, orderBy, orderTy
                     nest: true,
                     raw: true,
                     attributes: ["id", "userID", "projectID", "timeShareID"],
-                    where: {
+                    where: (+status === 1) ? {
+                        projectID: id,
+                        status: 1,
+                        reservationDate: timeShareDateResponse.reservationDate,
+                        closeDate: timeShareDateResponse.closeDate,
+                        timeShareID: {
+                            [Op.eq]: null,
+                        }
+                    } : (+status === 2) ? {
+                        projectID: id,
+                        status: 1,
+                        reservationDate: timeShareDateResponse.reservationDate,
+                        closeDate: timeShareDateResponse.closeDate,
+                        timeShareID: {
+                            [Op.ne]: null,
+                        }
+                    } : {
                         projectID: id,
                         status: 1,
                         reservationDate: timeShareDateResponse.reservationDate,
@@ -2066,10 +2120,10 @@ export const getAllTicketsByAdmin = ({ id, status, page, limit, orderBy, orderTy
                 message: !projectResponse
                     ? `Project (${id}) does not exist!`
                     : projectResponse.status === 3 ?
-                    `Project (${id}) has already checked for priority!`
-                    : response.length === 0
-                        ? `Can not find any Users have bought Reservation Ticket of Project(${id}) before checkPrority Stage!`
-                        : `All Users have bought Reservation Ticket of Project(${id}) before checkPrority Stage.`,
+                        `Project (${id}) has already checked for priority!`
+                        : response.length === 0
+                            ? `Can not find any Users have bought Reservation Ticket of Project(${id}) before checkPrority Stage!`
+                            : `All Users have bought Reservation Ticket of Project(${id}) before checkPrority Stage.`,
                 data: response.length !== 0 ? response : null,
                 count: response.length,
                 countPages: countPages,
