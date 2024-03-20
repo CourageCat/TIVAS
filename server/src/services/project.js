@@ -1817,10 +1817,13 @@ export const getAllReservation = ({
                         project.features = projectResponse[i].features;
                         project.attractions = projectResponse[i].attractions;
                         project.location = projectResponse[i].Location.name;
-                        project.typeOfProject = [];
-                        for (let j = 0; j < projectResponse[i].TypeOfProjects.length; j++) {
-                            project.typeOfProject.push(projectResponse[i].TypeOfProjects[j].Type.name)
+                        let type;
+                        if (projectResponse.TypeOfProjects.length !== 2) {
+                            type = projectResponse.TypeOfProjects[0].Type.name
+                        } else {
+                            type = "Villa and Hotel";
                         }
+                        project.typeOfProject = type
                         response.push(project);
                     }
                 }
@@ -1835,6 +1838,7 @@ export const getAllReservation = ({
             })
         } catch (error) {
             console.log(error);
+            reject(error)
         }
     })
 }
