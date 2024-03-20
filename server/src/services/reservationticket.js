@@ -652,99 +652,108 @@ export const checkPriority = (id) => {
                       html: renderedHtml,
                     };
 
-                    transporter.sendMail(mailOptions, function (error, info) {
-                      if (error) {
-                        console.log(error);
-                      } else {
-                        console.log("Email sent: " + info.response);
-                      }
-                    });
-                  }
-                }
-              }
-              const timeShareOnSale = await db.TimeShareDate.findOne({
-                where: {
-                  projectID: id,
-                },
-                order: [["id", "DESC"]],
-              });
-              const ticketFailedResponse = await db.ReservationTicket.findAll({
-                nest: true,
-                raw: true,
-                attributes: [
-                  "id",
-                  "userID",
-                  "projectID",
-                  "timeShareID",
-                  "refund",
-                  "reservationPrice",
-                ],
-                include: [
-                  {
-                    model: db.User,
-                    attributes: ["id", "username", "email", "refundHistoryID"],
-                  },
-                  {
-                    model: db.Project,
-                    attributes: ["id", "name"],
-                  },
-                  {
-                    model: db.TimeShare,
-                    atributes: ["id", "startDate", "endDate"],
-                    include: [
-                      {
-                        model: db.TypeRoom,
-                        attributes: ["id", "name"],
-                      },
-                    ],
-                  },
-                ],
-                where: {
-                  projectID: id,
-                  status: 1,
-                  reservationDate: timeShareOnSale?.reservationDate,
-                  closeDate: timeShareOnSale?.closeDate,
-                },
-              });
-              for (let i = 0; i < ticketFailedResponse.length; i++) {
-                let transporter = nodemailer.createTransport({
-                  service: "gmail",
-                  auth: {
-                    user: process.env.GOOGE_APP_EMAIL,
-                    pass: process.env.GOOGLE_APP_PASSWORD,
-                  },
-                });
-                let emailTemplatePath;
-                let data;
-                if (ticketFailedResponse[i].TimeShare.id) {
-                  emailTemplatePath = "src/template/EmailFailed/index.ejs";
-                  data = {
-                    email: ticketFailedResponse[i].User.email,
-                    projectName: ticketFailedResponse[i].Project.name,
-                    typeRoomName:
-                      ticketFailedResponse[i].TimeShare?.TypeRoom.name,
-                    startDate: formatDate(
-                      ticketFailedResponse[i].TimeShare?.startDate
-                    ),
-                    endDate: formatDate(
-                      ticketFailedResponse[i].TimeShare?.endDate
-                    ),
-                    reservationPrice: ticketFailedResponse[i].reservationPrice,
-                  };
-                } else {
-                  emailTemplatePath =
-                    "src/template/EmailFailedNoTimeShare/index.ejs";
-                  data = {
-                    email: ticketFailedResponse[i].User.email,
-                    projectName: ticketFailedResponse[i].Project.name,
-                    reservationPrice: ticketFailedResponse[i].reservationPrice,
-                  };
-                }
-                const emailTemplate = fs.readFileSync(
-                  emailTemplatePath,
-                  "utf-8"
-                );
-                const renderedHtml = ejs.render(emailTemplate, data);
+                                        transporter.sendMail(mailOptions, function (error, info) {
+                                            if (error) {
+                                                console.log(error);
+                                            } else {
+                                                console.log("Email sent: " + info.response);
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                            const timeShareOnSale = await db.TimeShareDate.findOne({
+                                where: {
+                                    projectID: id,
+                                },
+                                order: [['id', 'DESC']]
+                            })
+
+                            //Update refund: 1
+                            await db.ReservationTicket.update(
+                                {
+                                    refund: 1,
+                                },
+                                {
+                                    where: {
+                                        status: 1,
+                                        projectID: id,
+                                        reservationDate: timeShareOnSale?.reservationDate,
+                                        closeDate: timeShareOnSale?.closeDate,
+                                    }
+                                })
+                            const ticketFailedResponse = await db.ReservationTicket.findAll({
+                                nest: true,
+                                raw: true,
+                                attributes: ['id', 'userID', 'projectID', 'timeShareID', 'refund', 'reservationPrice', 'updatedAt'],
+                                include: [
+                                    {
+                                        model: db.User,
+                                        attributes: ['id', 'username', 'email', 'refundHistoryID']
+                                    },
+                                    {
+                                        model: db.Project,
+                                        attributes: ['id', 'name']
+                                    },
+                                    {
+                                        model: db.TimeShare,
+                                        atributes: ['id', 'startDate', 'endDate'],
+                                        include: [
+                                            {
+                                                model: db.TypeRoom,
+                                                attributes: ['id', 'name']
+                                            },
+                                        ]
+                                    },
+                                ],
+                                where: {
+                                    projectID: id,
+                                    status: 1,
+                                    reservationDate: timeShareOnSale?.reservationDate,
+                                    closeDate: timeShareOnSale?.closeDate,
+                                }
+                            })
+                            for (let i = 0; i < ticketFailedResponse.length; i++) {
+                                //Update refundDate
+                                const check = await db.ReservationTicket.update({
+                                    refundDate: ticketFailedResponse[i].updatedAt
+                                }, {
+                                    where: {
+                                        id: ticketFailedResponse[i].id
+                                    }
+                                })
+                                console.log(check);
+
+                                //Send mail to failed User
+                                let transporter = nodemailer.createTransport({
+                                    service: "gmail",
+                                    auth: {
+                                        user: process.env.GOOGE_APP_EMAIL,
+                                        pass: process.env.GOOGLE_APP_PASSWORD,
+                                    },
+                                });
+                                let emailTemplatePath;
+                                let data;
+                                if (ticketFailedResponse[i].TimeShare.id) {
+                                    emailTemplatePath = "src/template/EmailFailed/index.ejs";
+                                    data = {
+                                        email: ticketFailedResponse[i].User.email,
+                                        projectName: ticketFailedResponse[i].Project.name,
+                                        typeRoomName: ticketFailedResponse[i].TimeShare?.TypeRoom.name,
+                                        startDate: formatDate(ticketFailedResponse[i].TimeShare?.startDate),
+                                        endDate: formatDate(ticketFailedResponse[i].TimeShare?.endDate),
+                                        reservationPrice: ticketFailedResponse[i].reservationPrice,
+                                    };
+                                } else {
+                                    emailTemplatePath = "src/template/EmailFailedNoTimeShare/index.ejs";
+                                    data = {
+                                        email: ticketFailedResponse[i].User.email,
+                                        projectName: ticketFailedResponse[i].Project.name,
+                                        reservationPrice: ticketFailedResponse[i].reservationPrice,
+                                    };
+                                }
+                                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+                                const renderedHtml = ejs.render(emailTemplate, data);
 
                 let mailOptions = {
                   from: "Tivas",
@@ -753,24 +762,25 @@ export const checkPriority = (id) => {
                   html: renderedHtml,
                 };
 
-                transporter.sendMail(mailOptions, function (error, info) {
-                  if (error) {
-                    console.log(error);
-                  } else {
-                    console.log("Email sent: " + info.response);
-                  }
-                });
-                const user = {};
-                user.id = ticketFailedResponse[i].User.id;
-                user.username = ticketFailedResponse[i].User.username;
-                user.refundHistoryID =
-                  ticketFailedResponse[i].User.refundHistoryID;
-                userNoPriority.push(user);
-              }
+                                transporter.sendMail(mailOptions, function (error, info) {
+                                    if (error) {
+                                        console.log(error);
+                                    } else {
+                                        console.log("Email sent: " + info.response);
+                                    }
+                                });
+                                const user = {};
+                                user.id = ticketFailedResponse[i].User.id;
+                                user.username = ticketFailedResponse[i].User.username;
+                                user.refundHistoryID = ticketFailedResponse[i].User.refundHistoryID;
+                                userNoPriority.push(user);
+                            }
+                        }
+                    }
+                }
             }
-          }
-        }
-      }
+
+
 
       // const {count , rows} = await db.ReservationTicket.findAndCountAll({
       //     where : {

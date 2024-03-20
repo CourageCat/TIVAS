@@ -272,6 +272,6 @@ export const statisticOnStage = async (req, res) => {
 };
 
 export const getAllProjectSold = async (req, res) => {
-  const response = await services.getAllProjectSold();
+  const response = await services.getAllProjectSold(req.query);
   return res.status(200).json(response);
 }
