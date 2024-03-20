@@ -943,7 +943,6 @@ export const openReservationTicket = (id) => {
                             },
                             order: [['id', 'DESC']]
                         })
-                        console.log(timeShareDateResponse.id);
                         timeShareResponse = await db.TimeShare.findAll({
                             where: {
                                 timeShareDateID: timeShareDateResponse.id,
@@ -970,6 +969,7 @@ export const openReservationTicket = (id) => {
                                     projectID: check.id
                                 }
                             })
+                            console.log(wishlist[0]);
                             for (let i = 0; i < wishlist.length; i++) {
                                 console.log(wishlist[i].User.email);
                                 let transporter = nodemailer.createTransport({
@@ -1704,8 +1704,8 @@ export const getAllProjectSold = ({
                         project.locationID = projectResponse[i].Location.id
                         project.location = projectResponse[i].Location.name
                         project.numberOfSoldStage = numberOfSoldStage.length
-                        response.push(project);
                         project.numberOfTimeShareSold = numberOfTimeShareSold.length
+                        response.push(project);
                         //project.numberOfUserByTimeShare = projectResponse[i].Project.name
                     }
                 }
