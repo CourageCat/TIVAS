@@ -129,10 +129,6 @@ export const getAllTicketsByUser = async (req, res) => {
 };
 
 export const getAllTicketsByAdmin = async (req, res) => {
-  const { id } = req.params;
-  if (!/^\d+$/.test(id)) {
-    return missValue("Missing value!", res);
-  }
-  const response = await services.getAllTicketsByAdmin(id);
+  const response = await services.getAllTicketsByAdmin(req.query);
   return res.status(200).json(response);
 };

@@ -994,7 +994,7 @@ export const listing = ({
 }) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const response = [];
+            let response = [];
             let pageInput = 1;
             let countPages = 0;
             let queries = pagination({ page, limit, orderType, orderBy });
@@ -1017,7 +1017,8 @@ export const listing = ({
                 pageInput = page;
             }
             if (pageInput <= countPages) {
-                const timeShareResponse = await db.TimeShare.findAll({
+                response = await db.TimeShare.findAll({
+                    attributes: ['id', 'price', 'startDate', 'endDate', 'saleStatus', 'createdAt'],
                     include: [
                         {
                             model: db.TypeRoom,
@@ -1037,37 +1038,25 @@ export const listing = ({
                         },
                         {
                             model: db.TimeShareDate,
-                            status: 0,
+                            attributes: [],
+                            where: {
+                                status: 0,
+                            }
                         },
                     ],
                     where: {
                         saleStatus: 1
-                    }
+                    },
+                    ...queries
                 })
-                if (timeShareResponse.length !== 0) {
-                    for (let i = 0; i < timeShareResponse.length; i++) {
-                        let timeShare = {};
-                        timeShare.id = timeShareResponse[i].id;
-                        timeShare.price = timeShareResponse[i].price;
-                        timeShare.startDate = formatDate(timeShareResponse[i].startDate);
-                        timeShare.endDate = formatDate(timeShareResponse[i].endDate);
-                        timeShare.saleStatus = timeShareResponse[i].saleStatus;
-                        timeShare.typeRoomID = timeShareResponse[i].TypeRoom.id;
-                        timeShare.typeRoomName = timeShareResponse[i].TypeRoom.name;
-                        timeShare.typeRoomPersons = timeShareResponse[i].TypeRoom.persons;
-                        timeShare.projectID = timeShareResponse[i].TypeRoom.TypeOfProject.Project.id;
-                        timeShare.projectName = timeShareResponse[i].TypeRoom.TypeOfProject.Project.name;
-                        timeShare.projectThumbnailPathUrl = timeShareResponse[i].TypeRoom.TypeOfProject.Project.thumbnailPathUrl;
-                        timeShare.locationID = timeShareResponse[i].TypeRoom.TypeOfProject.Project.Location.id;
-                        timeShare.locationName = timeShareResponse[i].TypeRoom.TypeOfProject.Project.Location.name;
-                        response.push(timeShare);
-                    }
-                }
             }
             resolve({
                 err: response.length !== 0 ? 0 : 1,
                 message: response.length === 0 ? `Can not find any TimeShares on sale for listing!` : `All TimeShares on sale for listing.`,
                 data: response.length !== 0 ? response : null,
+                count: response.length,
+                countPages: countPages,
+                page: pageInput
             })
         } catch (error) {
             console.log(error);

@@ -30,7 +30,7 @@ router.get("/getAllUserPriorityByStaff", controllers.getAllUserPriorityByStaff)
 
 router.get("/getAllTicketsByUser", controllers.getAllTicketsByUser)
 
-router.get("/getAllTicketsByAdmin/:id", controllers.getAllTicketsByAdmin)
+router.get("/getAllTicketsByAdmin", controllers.getAllTicketsByAdmin)
 
 //router.put("/refundUser/:id/:code", controllers.refundUser);
 
