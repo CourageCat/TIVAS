@@ -4,7 +4,6 @@ import "dotenv/config";
 import { Model, Op, fn, col, literal, where } from "sequelize";
 const nodemailer = require("nodemailer");
 import ejs from "ejs";
-import { log } from "console";
 const fs = require("fs");
 import { pagination } from "../middlewares/pagination";
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
@@ -28,26 +27,31 @@ function formatDate(date) {
 
 const refundLatestPayment = async (customerId) => {
   try {
-    const invoices = await stripe.invoices.list({
-      customer: customerId,
-    });
+    const charges = await stripe.charges.list({ customer: customerId });
 
-    const latestInvoice = invoices.data[0];
+    const latestCharge = charges.data[0];
 
-    const paymentIntentId = latestInvoice.payment_intent;
-
-    const refund = await stripe.refunds.create({
-      payment_intent: paymentIntentId,
-    });
-    console.log("refunded" + customerId + ":", refund);
+    if (latestCharge) {
+      const refund = await stripe.refunds.create({
+        charge: latestCharge.id,
+      });
+      console.log(
+        "Success refunds",
+        latestCharge.id + " của khách hàng",
+        customerId + ":",
+        refund
+      );
+    } else {
+      console.log("No charge found for customer", customerId);
+    }
   } catch (error) {
-    console.error("Error refund" + customerId + ":", error.message);
+    console.error("Error refunds:", error);
+    throw error;
   }
 };
-
-const refundMoneyUsers = async (users) => {
-  for (const user of users) {
-    await refundLatestPayment(user?.refundHistoryID);
+const refundForMultipleCustomers = async (customers) => {
+  for (const customer of customers) {
+    await refundLatestPayment(customer?.refundHistoryID);
   }
 };
 
@@ -652,108 +656,129 @@ export const checkPriority = (id) => {
                       html: renderedHtml,
                     };
 
-                                        transporter.sendMail(mailOptions, function (error, info) {
-                                            if (error) {
-                                                console.log(error);
-                                            } else {
-                                                console.log("Email sent: " + info.response);
-                                            }
-                                        });
-                                    }
-                                }
-                            }
-                            const timeShareOnSale = await db.TimeShareDate.findOne({
-                                where: {
-                                    projectID: id,
-                                },
-                                order: [['id', 'DESC']]
-                            })
+                    transporter.sendMail(mailOptions, function (error, info) {
+                      if (error) {
+                        console.log(error);
+                      } else {
+                        console.log("Email sent: " + info.response);
+                      }
+                    });
+                  }
+                }
+              }
+              const timeShareOnSale = await db.TimeShareDate.findOne({
+                where: {
+                  projectID: id,
+                },
+                order: [["id", "DESC"]],
+              });
 
-                            //Update refund: 1
-                            await db.ReservationTicket.update(
-                                {
-                                    refund: 1,
-                                },
-                                {
-                                    where: {
-                                        status: 1,
-                                        projectID: id,
-                                        reservationDate: timeShareOnSale?.reservationDate,
-                                        closeDate: timeShareOnSale?.closeDate,
-                                    }
-                                })
-                            const ticketFailedResponse = await db.ReservationTicket.findAll({
-                                nest: true,
-                                raw: true,
-                                attributes: ['id', 'userID', 'projectID', 'timeShareID', 'refund', 'reservationPrice', 'updatedAt'],
-                                include: [
-                                    {
-                                        model: db.User,
-                                        attributes: ['id', 'username', 'email', 'refundHistoryID']
-                                    },
-                                    {
-                                        model: db.Project,
-                                        attributes: ['id', 'name']
-                                    },
-                                    {
-                                        model: db.TimeShare,
-                                        atributes: ['id', 'startDate', 'endDate'],
-                                        include: [
-                                            {
-                                                model: db.TypeRoom,
-                                                attributes: ['id', 'name']
-                                            },
-                                        ]
-                                    },
-                                ],
-                                where: {
-                                    projectID: id,
-                                    status: 1,
-                                    reservationDate: timeShareOnSale?.reservationDate,
-                                    closeDate: timeShareOnSale?.closeDate,
-                                }
-                            })
-                            for (let i = 0; i < ticketFailedResponse.length; i++) {
-                                //Update refundDate
-                                const check = await db.ReservationTicket.update({
-                                    refundDate: ticketFailedResponse[i].updatedAt
-                                }, {
-                                    where: {
-                                        id: ticketFailedResponse[i].id
-                                    }
-                                })
-                                console.log(check);
+              //Update refund: 1
+              await db.ReservationTicket.update(
+                {
+                  refund: 1,
+                },
+                {
+                  where: {
+                    status: 1,
+                    projectID: id,
+                    reservationDate: timeShareOnSale?.reservationDate,
+                    closeDate: timeShareOnSale?.closeDate,
+                  },
+                }
+              );
+              const ticketFailedResponse = await db.ReservationTicket.findAll({
+                nest: true,
+                raw: true,
+                attributes: [
+                  "id",
+                  "userID",
+                  "projectID",
+                  "timeShareID",
+                  "refund",
+                  "reservationPrice",
+                  "updatedAt",
+                ],
+                include: [
+                  {
+                    model: db.User,
+                    attributes: ["id", "username", "email", "refundHistoryID"],
+                  },
+                  {
+                    model: db.Project,
+                    attributes: ["id", "name"],
+                  },
+                  {
+                    model: db.TimeShare,
+                    atributes: ["id", "startDate", "endDate"],
+                    include: [
+                      {
+                        model: db.TypeRoom,
+                        attributes: ["id", "name"],
+                      },
+                    ],
+                  },
+                ],
+                where: {
+                  projectID: id,
+                  status: 1,
+                  reservationDate: timeShareOnSale?.reservationDate,
+                  closeDate: timeShareOnSale?.closeDate,
+                },
+              });
+              for (let i = 0; i < ticketFailedResponse.length; i++) {
+                //Update refundDate
+                const check = await db.ReservationTicket.update(
+                  {
+                    refundDate: ticketFailedResponse[i].updatedAt,
+                  },
+                  {
+                    where: {
+                      id: ticketFailedResponse[i].id,
+                    },
+                  }
+                );
+                console.log(check);
 
-                                //Send mail to failed User
-                                let transporter = nodemailer.createTransport({
-                                    service: "gmail",
-                                    auth: {
-                                        user: process.env.GOOGE_APP_EMAIL,
-                                        pass: process.env.GOOGLE_APP_PASSWORD,
-                                    },
-                                });
-                                let emailTemplatePath;
-                                let data;
-                                if (ticketFailedResponse[i].TimeShare.id) {
-                                    emailTemplatePath = "src/template/EmailFailed/index.ejs";
-                                    data = {
-                                        email: ticketFailedResponse[i].User.email,
-                                        projectName: ticketFailedResponse[i].Project.name,
-                                        typeRoomName: ticketFailedResponse[i].TimeShare?.TypeRoom.name,
-                                        startDate: formatDate(ticketFailedResponse[i].TimeShare?.startDate),
-                                        endDate: formatDate(ticketFailedResponse[i].TimeShare?.endDate),
-                                        reservationPrice: ticketFailedResponse[i].reservationPrice,
-                                    };
-                                } else {
-                                    emailTemplatePath = "src/template/EmailFailedNoTimeShare/index.ejs";
-                                    data = {
-                                        email: ticketFailedResponse[i].User.email,
-                                        projectName: ticketFailedResponse[i].Project.name,
-                                        reservationPrice: ticketFailedResponse[i].reservationPrice,
-                                    };
-                                }
-                                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
-                                const renderedHtml = ejs.render(emailTemplate, data);
+                //Send mail to failed User
+                let transporter = nodemailer.createTransport({
+                  service: "gmail",
+                  auth: {
+                    user: process.env.GOOGE_APP_EMAIL,
+                    pass: process.env.GOOGLE_APP_PASSWORD,
+                  },
+                });
+                let emailTemplatePath;
+                let data;
+                if (ticketFailedResponse[i].TimeShare.id) {
+                  emailTemplatePath = "src/template/EmailFailed/index.ejs";
+                  data = {
+                    email: ticketFailedResponse[i].User.email,
+                    projectName: ticketFailedResponse[i].Project.name,
+                    typeRoomName:
+                      ticketFailedResponse[i].TimeShare?.TypeRoom.name,
+                    startDate: formatDate(
+                      ticketFailedResponse[i].TimeShare?.startDate
+                    ),
+                    endDate: formatDate(
+                      ticketFailedResponse[i].TimeShare?.endDate
+                    ),
+                    reservationPrice: ticketFailedResponse[i].reservationPrice,
+                  };
+                } else {
+                  emailTemplatePath =
+                    "src/template/EmailFailedNoTimeShare/index.ejs";
+                  data = {
+                    email: ticketFailedResponse[i].User.email,
+                    projectName: ticketFailedResponse[i].Project.name,
+                    reservationPrice: ticketFailedResponse[i].reservationPrice,
+                  };
+                }
+                const emailTemplate = fs.readFileSync(
+                  emailTemplatePath,
+                  "utf-8"
+                );
+                const renderedHtml = ejs.render(emailTemplate, data);
 
                 let mailOptions = {
                   from: "Tivas",
@@ -762,33 +787,31 @@ export const checkPriority = (id) => {
                   html: renderedHtml,
                 };
 
-                                transporter.sendMail(mailOptions, function (error, info) {
-                                    if (error) {
-                                        console.log(error);
-                                    } else {
-                                        console.log("Email sent: " + info.response);
-                                    }
-                                });
-                                const user = {};
-                                user.id = ticketFailedResponse[i].User.id;
-                                user.username = ticketFailedResponse[i].User.username;
-                                user.refundHistoryID = ticketFailedResponse[i].User.refundHistoryID;
-                                userNoPriority.push(user);
-                            }
-                        }
-                    }
-                }
+                transporter.sendMail(mailOptions, function (error, info) {
+                  if (error) {
+                    console.log(error);
+                  } else {
+                    console.log("Email sent: " + info.response);
+                  }
+                });
+                const user = {};
+                user.id = ticketFailedResponse[i].User.id;
+                user.username = ticketFailedResponse[i].User.username;
+                user.refundHistoryID =
+                  ticketFailedResponse[i].User.refundHistoryID;
+                userNoPriority.push(user);
+              }
             }
-
-
+          }
+        }
+      }
 
       // const {count , rows} = await db.ReservationTicket.findAndCountAll({
       //     where : {
       //         status : 2
       //     }
       // })
-
-      await refundMoneyUsers(userNoPriority);
+      await refundForMultipleCustomers(userNoPriority);
       resolve({
         err: reservationInProject.length !== 0 ? 0 : 1,
         mess: !projectResponse
