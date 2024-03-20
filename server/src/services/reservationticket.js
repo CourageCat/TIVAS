@@ -616,10 +616,24 @@ export const checkPriority = (id) => {
                                 },
                                 order: [['id', 'DESC']]
                             })
+
+                            //Update refund: 1
+                            await db.ReservationTicket.update(
+                                {
+                                    refund: 1,
+                                },
+                                {
+                                    where: {
+                                        status: 1,
+                                        projectID: id,
+                                        reservationDate: timeShareOnSale?.reservationDate,
+                                        closeDate: timeShareOnSale?.closeDate,
+                                    }
+                                })
                             const ticketFailedResponse = await db.ReservationTicket.findAll({
                                 nest: true,
                                 raw: true,
-                                attributes: ['id', 'userID', 'projectID', 'timeShareID', 'refund', 'reservationPrice'],
+                                attributes: ['id', 'userID', 'projectID', 'timeShareID', 'refund', 'reservationPrice', 'updatedAt'],
                                 include: [
                                     {
                                         model: db.User,
@@ -649,6 +663,17 @@ export const checkPriority = (id) => {
                             })
                             const userNoPriority = [];
                             for (let i = 0; i < ticketFailedResponse.length; i++) {
+                                //Update refundDate
+                                const check = await db.ReservationTicket.update({
+                                    refundDate: ticketFailedResponse[i].updatedAt
+                                }, {
+                                    where: {
+                                        id: ticketFailedResponse[i].id
+                                    }
+                                })
+                                console.log(check);
+
+                                //Send mail to failed User
                                 let transporter = nodemailer.createTransport({
                                     service: "gmail",
                                     auth: {
@@ -703,6 +728,7 @@ export const checkPriority = (id) => {
                     }
                 }
             }
+
 
 
             // const {count , rows} = await db.ReservationTicket.findAndCountAll({

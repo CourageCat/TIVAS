@@ -44,6 +44,7 @@ export const createNewTimeShare = (
 ) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let timeShareQuantity = 0;
             let timeShareDateResponse;
             let errorTime;
             let projectReservated;
@@ -91,26 +92,41 @@ export const createNewTimeShare = (
                             }
                         })
                     }
-                    [timeShare, created] = await db.TimeShare.findOrCreate({
+                    timeShareQuantity = typeRoomResponse.quantity;
+                    //Find all TimeShares that have the same typeroom, startdate, enddate with the TimeShare Created
+                    const timeShareDuplicated = await db.TimeShare.findAll({
                         where: {
-                            typeRoomID,
-                            timeShareDateID: timeShareDateResponse.id
-                        },
-                        defaults: {
-                            price,
                             startDate: startDateDB,
                             endDate: endDateDB,
-                            userID,
-                            saleStatus: 0,
                             typeRoomID,
-                            quantity: typeRoomResponse.quantity,
-                            timeShareDateID: timeShareDateResponse.id
-                        },
+                        }
+                    })
+                    if (timeShareDuplicated.length !== 0) {
+                        for (let i = 0; i < timeShareDuplicated.length; i++) {
+                            timeShareQuantity = timeShareQuantity - (timeShareQuantity - timeShareDuplicated[i].quantity)
+                        }
                     }
-                    )
+
+                    if (timeShareQuantity !== 0) {
+                        [timeShare, created] = await db.TimeShare.findOrCreate({
+                            where: {
+                                typeRoomID,
+                                timeShareDateID: timeShareDateResponse.id
+                            },
+                            defaults: {
+                                price,
+                                startDate: startDateDB,
+                                endDate: endDateDB,
+                                userID,
+                                saleStatus: 0,
+                                typeRoomID,
+                                quantity: timeShareQuantity,
+                                timeShareDateID: timeShareDateResponse.id
+                            },
+                        })
+                    }
                 }
             }
-
             resolve({
                 err: created ? 0 : 1,
                 message: !typeRoomResponse ?
@@ -123,11 +139,12 @@ export const createNewTimeShare = (
                                 `TypeRoom (${typeRoomID}) belongs to Project which is for sales!`
                                 : !projectReservated ?
                                     `TypeRoom (${typeRoomID}) does not belong to Project that have reservation info!`
+                                    : timeShareQuantity === 0 ?
+                                    `TypeRoom (${typeRoomID}) with StartDate (${startDate}) and EndDate (${endDate}) is out of stock!`
                                     : !created ?
                                         `This timeshare is created by this staff or another staff!`
                                         : "Create successfully."
             })
-
         } catch (error) {
             console.log(error);
             reject(error);
@@ -629,8 +646,8 @@ export const getAllUserPurchasedTimeShare = ({
                         },
                         ...queries,
                     })
-                    if(ticketResponse.length !== 0){
-                        for(let i = 0; i < ticketResponse.length; i++){
+                    if (ticketResponse.length !== 0) {
+                        for (let i = 0; i < ticketResponse.length; i++) {
                             let user = {};
                             user.id = ticketResponse[i].User.id;
                             user.username = ticketResponse[i].User.username;
