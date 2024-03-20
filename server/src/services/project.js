@@ -967,12 +967,12 @@ export const openReservationTicket = (id) => {
             resolve({
                 err: timeShareResponse.length !== 0 ? 0 : 1,
                 mess: !check ?
-                `Project (${id}) does not exist!`
-                : check.status !== 0 ? 
-                `Project (${id}) has already opened for reservation`
-                : timeShareResponse.length === 0 ?
-                `Project (${id}) does not have any TimeShares!`
-                : `You can buy reservation ticket in Project (${id}) now`
+                    `Project (${id}) does not exist!`
+                    : check.status !== 0 ?
+                        `Project (${id}) has already opened for reservation`
+                        : timeShareResponse.length === 0 ?
+                            `Project (${id}) does not have any TimeShares!`
+                            : `You can buy reservation ticket in Project (${id}) now`
             })
         } catch (error) {
             console.log(error);
@@ -1505,19 +1505,31 @@ export const statisticOnStage = (id) => {
     })
 }
 
-export const getAllProjectSold = () => {
+export const getAllProjectSold = ({
+    page,
+    limit,
+    orderBy,
+    orderType
+}) => {
     return new Promise(async (resolve, reject) => {
         try {
             let response = [];
             let pageInput = 1;
             let countPages = 0;
             let queries = pagination({ page, limit, orderType, orderBy });
-            const projectResponsePagination = await db.TimeShareDate.findAll({
-                attributes: ['projectID'],
+            const projectResponsePagination = await db.Project.findAll({
+                nest: true,
+                attributes: ['id'],
                 include: {
-                    model: db.Project
+                    required: true,
+                    attributes: [],
+                    model: db.TimeShareDate,
+                    as: 'TimeShareDates',
+                    where: {
+                        status: 1
+                    },
                 },
-                group: ['projectID']
+                group: ['Project.id'],
             })
             countPages = projectResponsePagination.length !== 0 ? 1 : 0;
             if (projectResponsePagination.length / queries.limit > 1) {
@@ -1530,30 +1542,58 @@ export const getAllProjectSold = () => {
             }
 
             if (pageInput <= countPages) {
-                const projectResponse = await db.TimeShareDate.findAll({
-                    attributes: ['projectID'],
-                    include: {
-                        model: db.Project,
-                        include: {
+                const projectResponse = await db.Project.findAll({
+                    nest: true,
+                    required: true,
+                    attributes: ['id', 'name', 'thumbnailPathUrl', 'buildingStatus'],
+                    include: [
+                        {
+                            model: db.TimeShareDate,
+                            attributes: [],
+                            as: 'TimeShareDates',
+                            where: {
+                                status: 1
+                            },
+                        },
+                        {
                             model: db.Location,
                             attributes: ['id', 'name']
                         },
-                    },
-                    group: ['projectID'],
-                    ...queries,
+                    ],
+                    group: ['Project.id'],
+                    ...queries
                 })
+                console.log(projectResponse);
                 if (projectResponse.length !== 0) {
                     for (let i = 0; i < projectResponse.length; i++) {
                         let project = {};
-                        project.id = projectResponse[i].Project.id
-                        project.name = projectResponse[i].Project.name
-                        project.thumbnailPathUrl = projectResponse[i].Project.thumbnailPathUrl
-                        project.buildingStatus = projectResponse[i].Project.buildingStatus
-                        project.locationID = projectResponse[i].Project.Location.id
-                        project.location = projectResponse[i].Project.Location.name
-                        project.numberOfSoldStage = projectResponse[i].Project.name
-                        project.number = projectResponse[i].Project.name
-                        project.name = projectResponse[i].Project.name
+                        const numberOfSoldStage = await db.TimeShareDate.findAll({
+                            where: {
+                                projectID: projectResponse[i].id,
+                                status: 1,
+                            }
+                        })
+                        const numberOfTimeShareSold = await db.ReservationTicket.findAll({
+                            include: {
+                                model: db.Booking,
+                                where: {
+                                    status: 1
+                                }
+                            },
+                            where: {
+                                projectID: projectResponse[i].id
+                            }
+                        })
+                        project.id = projectResponse[i].id
+                        project.name = projectResponse[i].name
+                        project.thumbnailPathUrl = projectResponse[i].thumbnailPathUrl
+                        project.buildingStatus = projectResponse[i].buildingStatus
+                        project.locationID = projectResponse[i].Location.id
+                        project.location = projectResponse[i].Location.name
+                        project.numberOfSoldStage = numberOfSoldStage.length
+                        response.push(project);
+                        project.numberOfTimeShareSold = numberOfTimeShareSold.length
+                        //project.numberOfUserByTimeShare = projectResponse[i].Project.name
                     }
                 }
             }
@@ -1586,7 +1626,10 @@ export const getAllProjectSold = () => {
             resolve({
                 err: response.length !== 0 ? 0 : 1,
                 message: response.length !== 0 ? `All Projects have Sold Stage.` : `Can not find any Project that have Sold Stage`,
-                data: response.length !== 0 ? response : null
+                data: response.length !== 0 ? response : null,
+                count: response.length,
+                countPages: countPages,
+                page: pageInput
             })
         } catch (error) {
             console.log(error);
