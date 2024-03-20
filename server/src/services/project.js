@@ -917,6 +917,39 @@ export const openReservationTicket = (id) => {
                         }
                     })
                     message.push("You can buy reservation ticket now")
+                    const wishlist = await db.WishList.findAll({
+                        include : {
+                            model : db.User,
+                            attributes : ["id","email"]
+                        }
+                    },{
+                        where : {
+                            projectID : check.id
+                        }
+                    })
+                    for (let i = 0; i < wishlist.length; i++) {
+                        let transporter = nodemailer.createTransport({
+                            service: "gmail",
+                            auth: {
+                                user: process.env.GOOGE_APP_EMAIL,
+                                pass: process.env.GOOGLE_APP_PASSWORD,
+                            },
+                        });
+                        let mailOptions = {
+                            from: "Tivas",
+                            to: `${wishlist.email}`,
+                            subject: "Wishlist Project",
+                            text: "Your favourite project is openReservation now"
+    
+                        };
+                        transporter.sendMail(mailOptions, function (error, info) {
+                            if (error) {
+                                console.log(error);
+                            } else {
+                                console.log("Email sent: " + info.response);
+                            }
+                        });
+                    }
                     // }
                 } else {
                     message.push(`Project (${id}) is already opened for reservation!`)
@@ -1200,7 +1233,6 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice, o
                                     : `Close date of ${projectResponse.name} is move to ${closeDate}`
 
                         };
-                        console.log(user1.id);
                         transporter.sendMail(mailOptions, function (error, info) {
                             if (error) {
                                 console.log(error);
