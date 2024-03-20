@@ -123,6 +123,11 @@ export const getAllUserPurchasedTimeShare = async (req, res) => {
   return res.status(200).json(response);
 }
 
+export const listing = async (req, res) => {
+  const response = await services.listing(req.query);
+  return res.status(200).json(response);
+}
+
 export const getDetailsTimeShareByStaff = async (req, res) => {
   const response = await services.getDetailsTimeShareByStaff(req.query);
   return res.status(200).json(response);

@@ -43,6 +43,11 @@ router.get(
 )
 
 router.get(
+    "/listing",
+    controllers.listing
+)
+
+router.get(
     "/:id",
     controllers.getDetailsTimeShare,
 )

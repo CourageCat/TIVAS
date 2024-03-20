@@ -160,6 +160,29 @@ export const getTypeOfProject = async (req, res) => {
 
 export const updateBooking = async (req, res) => {
   const { id } = req.params;
+  const { openDate, closeDate } = req.body;
+  if (!openDate || !closeDate) {
+    return missValue("Missing value!", res);
+  }
+  const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+  if (
+    !dateRegex.test(openDate) ||
+    !dateRegex.test(closeDate)
+  ) {
+    return badRequest(
+      "Open Date or Close Date must be like (dd/mm/yyyy) format!",
+      res
+    );
+  }
+  if (
+    !isValidDate(openDate) ||
+    !isValidDate(closeDate)
+  ) {
+    return badRequest(
+      "Open Date or Close Date must be a valid date!",
+      res
+    );
+  }
   const response = await services.updateBooking(req.body, id);
   return res.status(200).json(response);
 };
@@ -195,7 +218,7 @@ export const getReservation = async (req, res) => {
 
 export const updateReservationInfo = async (req, res) => {
   const { id } = req.params;
-  const { reservationDate, reservationPrice, openDate, closeDate } = req.body;
+  const { reservationDate, reservationPrice } = req.body;
   if (!reservationDate || !reservationPrice) {
     return missValue("Missing value!", res);
   }
@@ -212,34 +235,14 @@ export const updateReservationInfo = async (req, res) => {
     !isValidDate(reservationDate)
   ) {
     return badRequest(
-      "Reservation Date, Open Date or Close Date must be a valid date!",
+      "Reservation Date must be a valid date!",
       res
     );
-  }
-  if (openDate && closeDate) {
-    if (
-      !dateRegex.test(openDate) ||
-      !dateRegex.test(closeDate)
-    ) {
-      return badRequest(
-        "Open Date or Close Date must be like (dd/mm/yyyy) format!",
-        res
-      );
-    }
-    if (
-      !isValidDate(openDate) ||
-      !isValidDate(closeDate)
-    ) {
-      return badRequest(
-        "Open Date or Close Date must be a valid date!",
-        res
-      );
-    }
   }
   if (!/\b\d+(\.\d+)?\b/g.test(reservationPrice)) {
     return badRequest("Reservation Price is required a NUMBER!");
   }
-  if (reservationPrice < 0) {
+  if (reservationPrice <= 0) {
     return badRequest("Reservation Price must be higher than 0!", res);
   }
   const response = await services.updateReservationInfo(id, req.body);
