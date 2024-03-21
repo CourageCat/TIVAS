@@ -5,6 +5,10 @@ import { Model, Op, fn, col, literal, INTEGER } from "sequelize";
 import { pagination } from "../middlewares/pagination";
 const nodemailer = require("nodemailer");
 
+import ejs from "ejs";
+import { log } from "console";
+const fs = require("fs");
+
 const convertDate = (dateString) => {
     const parts = dateString.split('/');
     const day = parseInt(parts[0], 10);
@@ -836,7 +840,17 @@ export const updateBooking = ({
 }, id) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let openDateChange;
+            let closeDateChange;
             const projectResponse = await db.Project.findByPk(id);
+            if (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime()) {
+                openDateChange = `Open Date: from ${formatDate(projectResponse.openDate)} to ${openDate}`
+                closeDateChange = `Close Date: from ${formatDate(projectResponse.closeDate)} to ${closeDate} `
+            } else if (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime()) {
+                openDateChange = `Open Date: from ${formatDate(projectResponse.openDate)} to ${openDate}`
+            } else {
+                closeDateChange = `Close Date: from ${formatDate(projectResponse.closeDate)} to ${closeDate} `
+            }
             if (projectResponse) {
                 if (!(projectResponse.status === 2 && (projectResponse.openDate.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate.getTime() !== convertDate(closeDate).getTime()))) {
                     await db.Project.update({
@@ -847,13 +861,20 @@ export const updateBooking = ({
                             id,
                         }
                     })
+                    const timeShareDate = await db.TimeShareDate.findOne({
+                        where: {
+                            projectID: id,
+                            status: 0
+                        }
+                    })
+                    console.log(timeShareDate);
+
                     await db.TimeShareDate.update({
                         openDate: convertDate(openDate),
                         closeDate: convertDate(closeDate)
                     }, {
                         where: {
-                            projectID: id,
-                            status: 0
+                            id: timeShareDate.id
                         }
                     })
                     await db.ReservationTicket.update({
@@ -866,48 +887,60 @@ export const updateBooking = ({
                         }
                     })
 
-                    if (projectResponse.status === 1) {
-                        const user = await db.ReservationTicket.findAll({
-                            where: {
-                                projectID: id,
-                                status: 1
+
+                    const user = await db.ReservationTicket.findAll({
+                        include: {
+                            model: db.Project,
+                            attributes: ['id', 'name']
+                        },
+                        where: {
+                            projectID: id,
+                            status: 1,
+                            reservationDate: timeShareDate.reservationDate,
+                            closeDate: convertDate(closeDate)
+                        }
+                    })
+                    console.log(user);
+                    const result = Object.groupBy(user, ({ userID }) => userID)
+                    let count1 = 0
+                    for (let properties in result) {
+                        count1 = count1 + 1
+                    }
+                    for (let i = 0; i < count1; i++) {
+                        const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
+                        let transporter = nodemailer.createTransport({
+                            service: "gmail",
+                            auth: {
+                                user: process.env.GOOGE_APP_EMAIL,
+                                pass: process.env.GOOGLE_APP_PASSWORD,
+                            },
+                        });
+                        const emailTemplatePath = "src/template/EmailChangeDate/index.ejs";
+                        const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+
+                        const data = {
+                            email: user1.email,
+                            projectName: result[Object.getOwnPropertyNames(result)[i]][0].Project.name,
+                            openDateChange: openDateChange ? openDateChange : "",
+                            closeDateChange: closeDateChange ? closeDateChange : ""
+                        };
+
+                        const renderedHtml = ejs.render(emailTemplate, data);
+                        let mailOptions = {
+                            from: "Tivas",
+                            to: `${user1.email}`,
+                            subject: "Confirm received email",
+                            html: renderedHtml
+
+                        };
+                        console.log(user1.id);
+                        transporter.sendMail(mailOptions, function (error, info) {
+                            if (error) {
+                                console.log(error);
+                            } else {
+                                console.log("Email sent: " + info.response);
                             }
-                        })
-                        const result = Object.groupBy(user, ({ userID }) => userID)
-                        let count1 = 0
-                        for (let properties in result) {
-                            count1 = count1 + 1
-                        }
-                        for (let i = 0; i < count1; i++) {
-                            const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
-                            let transporter = nodemailer.createTransport({
-                                service: "gmail",
-                                auth: {
-                                    user: process.env.GOOGE_APP_EMAIL,
-                                    pass: process.env.GOOGLE_APP_PASSWORD,
-                                },
-                            });
-                            let mailOptions = {
-                                from: "Tivas",
-                                to: `${user1.email}`,
-                                subject: "Confirm received email",
-                                text: projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() ?
-                                    `Open date of ${projectResponse.name} is move to ${openDate} and Close date of ${projectResponse.name} is move to ${closeDate}`
-                                    : projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() ?
-                                        `Open date of ${projectResponse.name} is move to ${openDate}`
-                                        : `Close date of ${projectResponse.name} is move to ${closeDate}`
-
-                            };
-                            console.log(user1.id);
-                            transporter.sendMail(mailOptions, function (error, info) {
-                                if (error) {
-                                    console.log(error);
-                                } else {
-                                    console.log("Email sent: " + info.response);
-                                }
-                            });
-                        }
-
+                        });
                     }
                 }
             }
@@ -960,16 +993,20 @@ export const openReservationTicket = (id) => {
                                 }
                             })
                             const wishlist = await db.WishList.findAll({
-                                include: {
-                                    model: db.User,
-                                    attributes: ["id", "email"]
-                                }
-                            }, {
+                                include: [
+                                    {
+                                        model: db.User,
+                                        attributes: ["id", "email"]
+                                    },
+                                    {
+                                        model: db.Project,
+                                        attributes: ['id', 'name']
+                                    },
+                                ],
                                 where: {
                                     projectID: check.id
                                 }
                             })
-                            console.log(wishlist[0]);
                             for (let i = 0; i < wishlist.length; i++) {
                                 console.log(wishlist[i].User.email);
                                 let transporter = nodemailer.createTransport({
@@ -979,12 +1016,21 @@ export const openReservationTicket = (id) => {
                                         pass: process.env.GOOGLE_APP_PASSWORD,
                                     },
                                 });
+                                const emailTemplatePath = "src/template/EmailWishListReservation/index.ejs";
+                                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+
+                                const data = {
+                                    email: wishlist[i].User.email,
+                                    projectName: wishlist[i].Project.name
+                                };
+
+                                const renderedHtml = ejs.render(emailTemplate, data);
+
                                 let mailOptions = {
                                     from: "Tivas",
                                     to: `${wishlist[i].User.email}`,
                                     subject: "Wishlist Project",
-                                    text: "Your favourite project is openReservation now"
-
+                                    html: renderedHtml
                                 };
                                 transporter.sendMail(mailOptions, function (error, info) {
                                     if (error) {
@@ -1802,8 +1848,8 @@ export const getAllReservation = ({
                     },
                     ...queries,
                 })
-                if(projectResponse.length !== 0){
-                    for(let i = 0; i < projectResponse.length; i++){
+                if (projectResponse.length !== 0) {
+                    for (let i = 0; i < projectResponse.length; i++) {
                         const project = {};
                         project.id = projectResponse[i].id;
                         project.name = projectResponse[i].name;

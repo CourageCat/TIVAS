@@ -84,13 +84,23 @@ export const createTicket = ({
                         pass: process.env.GOOGLE_APP_PASSWORD,
                     },
                 });
+                const emailTemplatePath = "src/template/EmailTicket/index.ejs";
+                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+
+                const data = {
+                    email: user.email,
+                    projectName: projectResponse.name,
+                    code: code
+                };
+
+                const renderedHtml = ejs.render(emailTemplate, data);
                 let mailOptions = {
                     from: "Tivas",
                     to: `${user.email}`,
                     subject: "Confirm received email",
-                    text: `Your reservation ticket code is ${code}`
+                    html: renderedHtml
                 };
-                await transporter.sendMail(mailOptions, function (error, info) {
+                transporter.sendMail(mailOptions, function (error, info) {
                     if (error) {
                         console.log(error);
                     } else {
@@ -403,7 +413,7 @@ export const createReservation = ({
 //     })
 // }
 
-export const checkPriority = ({id, type}) => {
+export const checkPriority = ({ id, type }) => {
     return new Promise(async (resolve, reject) => {
         try {
             let reservationInProject = [];
