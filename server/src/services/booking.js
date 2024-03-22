@@ -4,49 +4,74 @@ import { Model, Op, fn, col, literal } from "sequelize";
 import { pagination } from "../middlewares/pagination";
 
 export const rejectBooking = ({
-    userID,
-    timeShareID,
+    reservationID
 }) => {
     return new Promise(async (resolve, reject) => {
         try {
-            const userResponse = await db.User.findByPk(userID);
-            const timeShareResponse = await db.TimeShare.findByPk(timeShareID);
-            let ticket;
-            if (userResponse && timeShareResponse) {
-                ticket = await db.ReservationTicket.findOne({
+            const ticket = await db.ReservationTicket.findByPk(reservationID)
+            if (ticket) {
+                await db.Booking.update({
+                    status: -1
+                }, {
                     where: {
-                        userID,
-                        timeShareID,
-                        status: 2,
+                        reservationTicketID: ticket.id
+                    },
+                })
+
+                const timeShareResponse = await db.TimeShare.findByPk(ticket.timeShareID);
+
+                await db.TimeShare.update({
+                    quantity: timeShareResponse.quantity + 1
+                }, {
+                    where: {
+                        id: ticket.timeShareID,
                     }
                 })
-                if (ticket) {
-                    await db.Booking.update({
-                        status: -1
+
+                const timeShareDate = await db.TimeShareDate.findOne({
+                    where: {
+                        projectID: ticket.projectID
+                    },
+                    order: [['id', 'DESC']]
+                })
+                const reservationTicketResponse = await db.ReservationTicket.findAll({
+                    include: {
+                        model: db.Booking,
+                        where: {
+                            status: 0
+                        }
+                    },
+                    where: {
+                        reservationDate: timeShareDate.reservationDate
+                    }
+                })
+                if (reservationTicketResponse.length === 0) {
+                    await db.TimeShareDate.update({
+                        status: 1
                     }, {
                         where: {
-                            reservationTicketID: ticket.id
+                            id: timeShareDate.id
                         }
                     })
-
-                    await db.TimeShare.update({
-                        quantity: timeShareResponse.quantity + 1
+                    const updateBooking = await db.Booking.findOne({
+                        where: {
+                            reservationTicketID: reservationID
+                        }
+                    })
+                    await db.TimeShareDate.update({
+                        completedDate: updateBooking.updatedAt
                     }, {
                         where: {
-                            id: timeShareID,
+                            id: timeShareDate.id
                         }
                     })
                 }
             }
             resolve({
                 err: ticket ? 0 : 1,
-                message: !userResponse ?
-                    `User (${userID}) does not exist!`
-                    : !timeShareResponse ?
-                        `TimeShare (${timeShareID}) does not exist!`
-                        : !ticket ?
-                            `User (${userID}) does not have any booking with TimeShare (${timeShareID})!`
-                            : "Reject successfully."
+                message: !ticket ?
+                    `Reservation does not exist!`
+                    : "Reject successfully."
             })
         } catch (error) {
             console.log(error);
@@ -56,42 +81,64 @@ export const rejectBooking = ({
 }
 
 export const completeBooking = ({
-    userID,
-    timeShareID,
+    reservationID
 }) => {
     return new Promise(async (resolve, reject) => {
         try {
-            let ticket;
-            const userResponse = await db.User.findByPk(userID);
-            const timeShareResponse = await db.TimeShare.findByPk(timeShareID);
-            if (userResponse && timeShareResponse) {
-                ticket = await db.ReservationTicket.findOne({
+            const ticket = await db.ReservationTicket.findByPk(reservationID)
+
+            if (ticket) {
+                await db.Booking.update({
+                    status: 1
+                }, {
                     where: {
-                        userID,
-                        timeShareID,
-                        status: 2,
+                        reservationTicketID: ticket.id
+                    },
+                })
+                const timeShareDate = await db.TimeShareDate.findOne({
+                    where: {
+                        projectID: ticket.projectID
+                    },
+                    order: [['id', 'DESC']]
+                })
+                const reservationTicketResponse = await db.ReservationTicket.findAll({
+                    include: {
+                        model: db.Booking,
+                        where: {
+                            status: 0
+                        }
+                    },
+                    where: {
+                        reservationDate: timeShareDate.reservationDate
                     }
                 })
-
-                if (ticket) {
-                    await db.Booking.update({
+                if (reservationTicketResponse.length === 0) {
+                    await db.TimeShareDate.update({
                         status: 1
                     }, {
                         where: {
-                            reservationTicketID: ticket.id
+                            id: timeShareDate.id
+                        }
+                    })
+                    const updateBooking = await db.Booking.findOne({
+                        where: {
+                            reservationTicketID: reservationID
+                        }
+                    })
+                    await db.TimeShareDate.update({
+                        completedDate: updateBooking.updatedAt
+                    }, {
+                        where: {
+                            id: timeShareDate.id
                         }
                     })
                 }
             }
             resolve({
                 err: ticket ? 0 : 1,
-                message: !userResponse ?
-                    `User (${userID}) does not exist!`
-                    : !timeShareResponse ?
-                        `TimeShare (${timeShareID}) does not exist!`
-                        : !ticket ?
-                            `User (${userID}) does not have any booking with TimeShare (${timeShareID})!`
-                            : "Pay successfully."
+                message: !ticket ?
+                    `Reservation does not exist!`
+                    : "Completed successfully."
             })
         } catch (error) {
             console.log(error);

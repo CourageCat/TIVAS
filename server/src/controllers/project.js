@@ -210,9 +210,9 @@ export const updateReservation = async (req, res) => {
   return res.status(200).json(response);
 };
 
-export const getReservation = async (req, res) => {
+export const getReservationInfo = async (req, res) => {
   const { id } = req.params;
-  const response = await services.getReservation(id);
+  const response = await services.getReservationInfo(id);
   return res.status(200).json(response);
 };
 

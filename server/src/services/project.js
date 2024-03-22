@@ -864,8 +864,8 @@ export const updateBooking = ({
                     const timeShareDate = await db.TimeShareDate.findOne({
                         where: {
                             projectID: id,
-                            status: 0
-                        }
+                        },
+                        order: [['id', 'DESC']]
                     })
                     console.log(timeShareDate);
 
@@ -897,7 +897,7 @@ export const updateBooking = ({
                             projectID: id,
                             status: 1,
                             reservationDate: timeShareDate.reservationDate,
-                            closeDate: convertDate(closeDate)
+                            //closeDate: convertDate(closeDate)
                         }
                     })
                     console.log(user);
@@ -1086,8 +1086,8 @@ export const openBooking = (id) => {
                     const timeShareDatesResponse = await db.TimeShareDate.findOne({
                         where: {
                             projectID: id,
-                            status: 0,
-                        }
+                        },
+                        order: [['id', 'DESC']]
                     })
                     // Fetch records that need to be updated
                     const timeSharesToUpdate = await db.TimeShare.findAll({
@@ -1166,7 +1166,7 @@ export const openBooking = (id) => {
 //     })
 // }
 
-export const getReservation = (id) => {
+export const getReservationInfo = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
             let response = {};
@@ -1240,6 +1240,7 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice })
                             projectID: id,
                             status: 0,
                         })
+
                         // await db.ReservationTicket.update({
                         //     reservationDate: convertDate(reservationDate),
                         //     reservationPrice,
@@ -1562,7 +1563,7 @@ export const getAllSoldReservationStageOfProject = ({
                         for (let i = 0; i < timeShareDateResponse.length; i++) {
                             const timeShareDate = {};
                             timeShareDate.id = timeShareDateResponse[i].id;
-                            timeShareDate.date = `${formatDate(timeShareDateResponse[i].reservationDate)} - ${formatDate(timeShareDateResponse[i].closeDate)}`;
+                            timeShareDate.date = `${formatDate(timeShareDateResponse[i].reservationDate)} - ${formatDate(timeShareDateResponse[i].completedDate)}`;
                             timeShareDate.reservationPrice = timeShareDateResponse[i].reservationPrice;
                             timeShareDate.reservationDate = formatDate(timeShareDateResponse[i].reservationDate);
                             timeShareDate.openDate = formatDate(timeShareDateResponse[i].openDate);
@@ -1606,7 +1607,7 @@ export const statisticOnStage = (id) => {
                 let countPurchased = 0;
                 let obj = {}
                 let check = true
-                obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].closeDate)
+                obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].completedDate)
                 //numberOfReservationTicketBought && numberOfTimeSharesBooked
                 const { count, rows } = await db.ReservationTicket.findAndCountAll({
                     where: {
@@ -1812,7 +1813,7 @@ export const getAllReservation = ({
             const projectResponsePagination = await db.Project.findAll({
                 where: {
                     status: {
-                        [Op.or]: [1, 2]
+                        [Op.or]: [1, 2, 3]
                     }
                 }
             })
@@ -1843,7 +1844,7 @@ export const getAllReservation = ({
                     ],
                     where: {
                         status: {
-                            [Op.or]: [1, 2]
+                            [Op.or]: [1, 2, 3]
                         }
                     },
                     ...queries,

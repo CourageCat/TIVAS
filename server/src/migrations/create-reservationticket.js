@@ -36,6 +36,9 @@ module.exports = {
       refundDate: {
         type: Sequelize.DATE
       },
+      completed: {
+        type: Sequelize.INTEGER
+      },
       userID: {
         type: Sequelize.INTEGER
       },
