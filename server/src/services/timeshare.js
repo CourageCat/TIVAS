@@ -1029,24 +1029,31 @@ export const listing = ({
             let countPages = 0;
             let queries = pagination({ page, limit, orderType, orderBy });
             const timeShareResponsePagination = await db.TimeShare.findAll({
-                include: {
-                    model: db.TimeShareDate,
-                    status: 0,
-                    include: {
+                include: [
+                    {
                         model: db.TypeRoom,
+                        attributes: ['id', 'name', 'persons'],
                         include: {
                             model: db.TypeOfProject,
+                            attributes: ['id'],
                             include: {
                                 model: db.Project,
-                                where: {
-                                    status: {
-                                        [Op.ne]: 3
-                                    }
+                                attributes: ['id', 'name', 'thumbnailPathUrl', 'locationID'],
+                                include: {
+                                    model: db.Location,
+                                    attributes: ['id', 'name']
                                 }
                             }
                         }
-                    }
-                },
+                    },
+                    {
+                        model: db.TimeShareDate,
+                        attributes: [],
+                        where: {
+                            status: 0,
+                        }
+                    },
+                ],
                 where: {
                     saleStatus: 1
                 }
