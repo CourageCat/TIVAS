@@ -2212,7 +2212,7 @@ export const getAllTicketsByAdmin = ({ id, status, page, limit, orderBy, orderTy
                     nest: true,
                     raw: true,
                     attributes: ["id", "userID", "projectID", "timeShareID"],
-                    where: (+status === 1) ? {
+                    where: (+status === 2) ? {
                         projectID: id,
                         status: 1,
                         reservationDate: timeShareDateResponse.reservationDate,
@@ -2220,7 +2220,7 @@ export const getAllTicketsByAdmin = ({ id, status, page, limit, orderBy, orderTy
                         timeShareID: {
                             [Op.eq]: null,
                         }
-                    } : (+status === 2) ? {
+                    } : (+status === 3) ? {
                         projectID: id,
                         status: 1,
                         reservationDate: timeShareDateResponse.reservationDate,
@@ -2271,7 +2271,7 @@ export const getAllTicketsByAdmin = ({ id, status, page, limit, orderBy, orderTy
                                 },
                             },
                         ],
-                        where: (+status === 1) ? {
+                        where: (+status === 2) ? {
                             projectID: id,
                             status: 1,
                             reservationDate: timeShareDateResponse.reservationDate,
@@ -2279,7 +2279,7 @@ export const getAllTicketsByAdmin = ({ id, status, page, limit, orderBy, orderTy
                             timeShareID: {
                                 [Op.eq]: null,
                             }
-                        } : (+status === 2) ? {
+                        } : (+status === 3) ? {
                             projectID: id,
                             status: 1,
                             reservationDate: timeShareDateResponse.reservationDate,
