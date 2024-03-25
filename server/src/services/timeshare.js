@@ -309,7 +309,7 @@ export const getAllTimeShareOfProject = (projectID, {
                             }
                         },
                         {
-                            required: true,
+                            //required: true,
                             model: db.TimeShareDate,
                             attributes: [],
                             where: {
@@ -378,7 +378,7 @@ export const getAllTimeShareOfProject = (projectID, {
                     `Can not find Project (${projectID})` :
                     !(timeShareResponse.length !== 0) ? `Can not find any TimeShares of Project (${projectID})`
                         : `All TimeShares Of Project (${projectID})'s Result`,
-                data: response,
+                data: timeShareResponse.length !== 0 ? response : null,
                 count: timeShareResponse.length !== 0 ? timeShareResponse.length : 0,
                 page: pageInput,
                 countPages: countPages,
