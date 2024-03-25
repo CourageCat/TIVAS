@@ -678,6 +678,7 @@ export const checkPriority = ({ id, type }) => {
                             await db.ReservationTicket.update(
                                 {
                                     refund: 1,
+                                    completed: 1,
                                 },
                                 {
                                     where: {
@@ -814,6 +815,7 @@ export const checkPriority = ({ id, type }) => {
                             await db.ReservationTicket.update(
                                 {
                                     refund: 1,
+                                    completed: 1
                                 },
                                 {
                                     where: {
