@@ -42,7 +42,8 @@ export const rejectBooking = ({
                         }
                     },
                     where: {
-                        reservationDate: timeShareDate.reservationDate
+                        reservationDate: timeShareDate.reservationDate,
+                        projectID: ticket.projectID
                     }
                 })
                 if (reservationTicketResponse.length === 0) {
@@ -63,6 +64,15 @@ export const rejectBooking = ({
                     }, {
                         where: {
                             id: timeShareDate.id
+                        }
+                    })
+
+                    await db.ReservationTicket.update({
+                        completed: 1,
+                    }, {
+                        where: {
+                            reservationDate: timeShareDate.reservationDate,
+                            projectID: ticket.projectID
                         }
                     })
                 }
@@ -101,6 +111,7 @@ export const completeBooking = ({
                     },
                     order: [['id', 'DESC']]
                 })
+                console.log(123);
                 const reservationTicketResponse = await db.ReservationTicket.findAll({
                     include: {
                         model: db.Booking,
@@ -109,7 +120,8 @@ export const completeBooking = ({
                         }
                     },
                     where: {
-                        reservationDate: timeShareDate.reservationDate
+                        reservationDate: timeShareDate.reservationDate,
+                        projectID: ticket.projectID
                     }
                 })
                 if (reservationTicketResponse.length === 0) {
@@ -130,6 +142,14 @@ export const completeBooking = ({
                     }, {
                         where: {
                             id: timeShareDate.id
+                        }
+                    })
+                    await db.ReservationTicket.update({
+                        completed: 1,
+                    }, {
+                        where: {
+                            reservationDate: timeShareDate.reservationDate,
+                            projectID: ticket.projectID
                         }
                     })
                 }

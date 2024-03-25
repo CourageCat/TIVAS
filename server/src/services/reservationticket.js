@@ -678,7 +678,7 @@ export const checkPriority = ({ id, type }) => {
                             await db.ReservationTicket.update(
                                 {
                                     refund: 1,
-                                    completed: 1,
+                                    //completed: 1,
                                 },
                                 {
                                     where: {
@@ -815,7 +815,7 @@ export const checkPriority = ({ id, type }) => {
                             await db.ReservationTicket.update(
                                 {
                                     refund: 1,
-                                    completed: 1
+                                    //completed: 1
                                 },
                                 {
                                     where: {
@@ -1117,6 +1117,7 @@ export const getAllUserNoPriorityByAdmin = (
                             status: 1,
                             reservationDate: timeShareOnSale?.reservationDate,
                             closeDate: timeShareOnSale?.closeDate,
+                            completed: 0
                         }
                     })
                     countPages = ticketResponsePagination.length !== 0 ? 1 : 0;
@@ -1159,6 +1160,7 @@ export const getAllUserNoPriorityByAdmin = (
                                 status: 1,
                                 reservationDate: timeShareOnSale?.reservationDate,
                                 closeDate: timeShareOnSale?.closeDate,
+                                completed: 0
                             },
                             ...queries,
                         })
@@ -1263,7 +1265,8 @@ export const getAllUserPriorityByAdmin = (id, {
                             projectID: id,
                             status: 2,
                             reservationDate: timeShareOnSale?.reservationDate,
-                            closeDate: timeShareOnSale?.closeDate
+                            closeDate: timeShareOnSale?.closeDate,
+                            completed: 0
                         }
                     })
                     countPages = ticketResponsePagination.length !== 0 ? 1 : 0;
@@ -1308,7 +1311,8 @@ export const getAllUserPriorityByAdmin = (id, {
                                 projectID: id,
                                 status: 2,
                                 reservationDate: timeShareOnSale?.reservationDate,
-                                closeDate: timeShareOnSale?.closeDate
+                                closeDate: timeShareOnSale?.closeDate,
+                                completed: 0
                             },
                             ...queries,
                         })
@@ -1413,6 +1417,7 @@ export const getAllUserNoPriorityByStaff = ({ id, userID, page, limit, orderBy, 
                             status: 1,
                             reservationDate: timeShareOnSale?.reservationDate,
                             closeDate: timeShareOnSale?.closeDate,
+                            completed: 0
                         }
                     })
                     console.log(ticketResponsePagination);
@@ -1459,6 +1464,7 @@ export const getAllUserNoPriorityByStaff = ({ id, userID, page, limit, orderBy, 
                                 status: 1,
                                 reservationDate: timeShareOnSale?.reservationDate,
                                 closeDate: timeShareOnSale?.closeDate,
+                                completed: 0
                             }
                         })
                         if (ticketResponse.length !== 0) {
@@ -1537,6 +1543,12 @@ export const getAllUserPriorityByStaff = ({
                 userResponse.RoleCode.roleName === "Staff"
             ) {
                 if (projectResponse.status === 3) {
+                    const timeShareOnSale = await db.TimeShareDate.findOne({
+                        where: {
+                            projectID: id,
+                        },
+                        order: [['id', 'DESC']]
+                    })
                     const ticketResponsePagination = await db.ReservationTicket.findAll({
                         nest: true,
                         raw: true,
@@ -1573,7 +1585,10 @@ export const getAllUserPriorityByStaff = ({
                         where: {
                             projectID: id,
                             status: 2,
-                        },
+                            reservationDate: timeShareOnSale?.reservationDate,
+                            closeDate: timeShareOnSale?.closeDate,
+                            completed: 0
+                        }
                     });
                     countPages = ticketResponsePagination.length !== 0 ? 1 : 0;
                     if (ticketResponsePagination.length / queries.limit > 1) {
@@ -1619,9 +1634,12 @@ export const getAllUserPriorityByStaff = ({
                                 },
                             ],
                             where: {
-                                projectID: id,
-                                status: 2,
-                            },
+                            projectID: id,
+                            status: 2,
+                            reservationDate: timeShareOnSale?.reservationDate,
+                            closeDate: timeShareOnSale?.closeDate,
+                            completed: 0
+                        }
                         });
                         if (ticketResponse.length !== 0) {
                             for (let i = 0; i < ticketResponse.length; i++) {
@@ -1921,6 +1939,7 @@ export const getAllTicketsByUser = ({ id, status, page, limit, orderBy, orderTyp
                                     ticket.reservatedProjectDate = ticketResponse[i].createdAt
 
                                 }
+                                //response.push(ticket);
                                 if ((!(ticketResponse[i].Project.status === 3 && (+status === 2 || +status === 1)) && !(ticketResponse[i].Project.status !== 3 && (+status === 4)))) {
                                     console.log(123);
                                     response.push(ticket);
