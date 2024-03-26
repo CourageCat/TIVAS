@@ -1595,6 +1595,7 @@ export const getAllSoldReservationStageOfProject = ({
 export const statisticOnStage = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let response = {}
             let array = []
             const project = await db.TimeShareDate.findAll({
                 where: {
@@ -1683,12 +1684,17 @@ export const statisticOnStage = (id) => {
             total.purchasedSuccessPrice = purchasedSuccessPrice
             total.revenue = revenue
 
+            if(array.length !== 0){
+                response.array = array;
+                response.total = total;
+            }
+
             resolve({
                 err: array.length !== 0 ? 0 : 1,
                 mess: array.length === 0 ?
                     `Project (${id}) does not have enough information for statistic!`
                     : `Project (${id})'s statistic.`,
-                data: array, total
+                data: response
             })
         } catch (error) {
             console.log(error);
