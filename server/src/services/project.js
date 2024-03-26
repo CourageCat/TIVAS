@@ -1607,7 +1607,9 @@ export const statisticOnStage = (id) => {
                 let countPurchased = 0;
                 let obj = {}
                 let check = true
-                obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].completedDate)
+                //obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].completedDate)
+                obj.startDate = formatDate(project[i].reservationDate);
+                obj.completedDate = formatDate(project[i].completedDate);
                 //numberOfReservationTicketBought && numberOfTimeSharesBooked
                 const { count, rows } = await db.ReservationTicket.findAndCountAll({
                     where: {
@@ -1634,10 +1636,12 @@ export const statisticOnStage = (id) => {
                 let accept = 0
                 let deny = 0
                 let revenue = 0
+                let successRevenue = 0;
                 booking.forEach((item) => {
                     if (item.status == 1) {
                         accept++
                         revenue += item.priceBooking
+                        successRevenue += item.priceBooking
                     } else if (item.status == -1) {
                         deny++
                     } else {
@@ -1648,15 +1652,43 @@ export const statisticOnStage = (id) => {
                 revenue = revenue + countPurchased * project[i].reservationPrice
                 obj.numberOfTimeSharesPurchasedFailed = deny
                 obj.numberOfTimeSharesPurchasedSuccess = accept
+                obj.purchasedFailedPrice = deny * project[i].reservationPrice
+                obj.purchasedSuccessPrice = successRevenue + accept * project[i].reservationPrice
                 obj.revenue = revenue
                 if (check) array.push(obj)
             }
+            let total = {}
+            let numberOfReservationTicketBought = 0;
+            let numberOfTimeSharesBooked = 0;
+            let numberOfTimeSharesPurchasedFailed = 0;
+            let numberOfTimeSharesPurchasedSuccess = 0;
+            let purchasedFailedPrice = 0;
+            let purchasedSuccessPrice = 0;
+            let revenue = 0;
+
+            array.forEach((item) => {
+                numberOfReservationTicketBought += item.numberOfReservationTicketBought
+                numberOfTimeSharesBooked += item.numberOfTimeSharesBooked
+                numberOfTimeSharesPurchasedFailed += item.numberOfTimeSharesPurchasedFailed
+                numberOfTimeSharesPurchasedSuccess += item.numberOfTimeSharesPurchasedSuccess
+                purchasedFailedPrice += item.purchasedFailedPrice
+                purchasedSuccessPrice += item.purchasedSuccessPrice
+                revenue += item.revenue
+            })
+            total.numberOfReservationTicketBought = numberOfReservationTicketBought
+            total.numberOfTimeSharesBooked = numberOfTimeSharesBooked
+            total.numberOfTimeSharesPurchasedFailed = numberOfTimeSharesPurchasedFailed
+            total.numberOfTimeSharesPurchasedSuccess = numberOfTimeSharesPurchasedSuccess
+            total.purchasedFailedPrice = purchasedFailedPrice
+            total.purchasedSuccessPrice = purchasedSuccessPrice
+            total.revenue = revenue
+
             resolve({
                 err: array.length !== 0 ? 0 : 1,
                 mess: array.length === 0 ?
                     `Project (${id}) does not have enough information for statistic!`
                     : `Project (${id})'s statistic.`,
-                data: array
+                data: array, total
             })
         } catch (error) {
             console.log(error);
