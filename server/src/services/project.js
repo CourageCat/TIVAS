@@ -5,6 +5,10 @@ import { Model, Op, fn, col, literal, INTEGER } from "sequelize";
 import { pagination } from "../middlewares/pagination";
 const nodemailer = require("nodemailer");
 
+import ejs from "ejs";
+import { log } from "console";
+const fs = require("fs");
+
 const convertDate = (dateString) => {
     const parts = dateString.split('/');
     const day = parseInt(parts[0], 10);
@@ -722,7 +726,7 @@ export const getDetailsProject = (id) => {
                 if (projectResponse.TypeOfProjects.length !== 2) {
                     type = projectResponse.TypeOfProjects[0].Type.name
                 } else {
-                    type = "Villa and Hotel";
+                    type = "Villa & Hotel";
                 }
                 response.Project = {
                     id: projectResponse.id,
@@ -836,7 +840,17 @@ export const updateBooking = ({
 }, id) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let openDateChange;
+            let closeDateChange;
             const projectResponse = await db.Project.findByPk(id);
+            if (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime()) {
+                openDateChange = `Open Date: from ${formatDate(projectResponse.openDate)} to ${openDate}`
+                closeDateChange = `Close Date: from ${formatDate(projectResponse.closeDate)} to ${closeDate} `
+            } else if (projectResponse.openDate?.getTime() !== convertDate(openDate).getTime()) {
+                openDateChange = `Open Date: from ${formatDate(projectResponse.openDate)} to ${openDate}`
+            } else {
+                closeDateChange = `Close Date: from ${formatDate(projectResponse.closeDate)} to ${closeDate} `
+            }
             if (projectResponse) {
                 if (!(projectResponse.status === 2 && (projectResponse.openDate.getTime() !== convertDate(openDate).getTime() || projectResponse.closeDate.getTime() !== convertDate(closeDate).getTime()))) {
                     await db.Project.update({
@@ -847,13 +861,20 @@ export const updateBooking = ({
                             id,
                         }
                     })
+                    const timeShareDate = await db.TimeShareDate.findOne({
+                        where: {
+                            projectID: id,
+                        },
+                        order: [['id', 'DESC']]
+                    })
+                    console.log(timeShareDate);
+
                     await db.TimeShareDate.update({
                         openDate: convertDate(openDate),
                         closeDate: convertDate(closeDate)
                     }, {
                         where: {
-                            projectID: id,
-                            status: 0
+                            id: timeShareDate.id
                         }
                     })
                     await db.ReservationTicket.update({
@@ -866,49 +887,60 @@ export const updateBooking = ({
                         }
                     })
 
-                    if (projectResponse.status === 1) {
 
-                        const user = await db.ReservationTicket.findAll({
-                            where: {
-                                projectID: id,
-                                status: 1
+                    const user = await db.ReservationTicket.findAll({
+                        include: {
+                            model: db.Project,
+                            attributes: ['id', 'name']
+                        },
+                        where: {
+                            projectID: id,
+                            status: 1,
+                            reservationDate: timeShareDate.reservationDate,
+                            //closeDate: convertDate(closeDate)
+                        }
+                    })
+                    console.log(user);
+                    const result = Object.groupBy(user, ({ userID }) => userID)
+                    let count1 = 0
+                    for (let properties in result) {
+                        count1 = count1 + 1
+                    }
+                    for (let i = 0; i < count1; i++) {
+                        const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
+                        let transporter = nodemailer.createTransport({
+                            service: "gmail",
+                            auth: {
+                                user: process.env.GOOGE_APP_EMAIL,
+                                pass: process.env.GOOGLE_APP_PASSWORD,
+                            },
+                        });
+                        const emailTemplatePath = "src/template/EmailChangeDate/index.ejs";
+                        const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+
+                        const data = {
+                            email: user1.email,
+                            projectName: result[Object.getOwnPropertyNames(result)[i]][0].Project.name,
+                            openDateChange: openDateChange ? openDateChange : "",
+                            closeDateChange: closeDateChange ? closeDateChange : ""
+                        };
+
+                        const renderedHtml = ejs.render(emailTemplate, data);
+                        let mailOptions = {
+                            from: "Tivas",
+                            to: `${user1.email}`,
+                            subject: "Confirm received email",
+                            html: renderedHtml
+
+                        };
+                        console.log(user1.id);
+                        transporter.sendMail(mailOptions, function (error, info) {
+                            if (error) {
+                                console.log(error);
+                            } else {
+                                console.log("Email sent: " + info.response);
                             }
-                        })
-                        const result = Object.groupBy(user, ({ userID }) => userID)
-                        let count1 = 0
-                        for (let properties in result) {
-                            count1 = count1 + 1
-                        }
-                        for (let i = 0; i < count1; i++) {
-                            const user1 = await db.User.findByPk(Object.getOwnPropertyNames(result)[i])
-                            let transporter = nodemailer.createTransport({
-                                service: "gmail",
-                                auth: {
-                                    user: process.env.GOOGE_APP_EMAIL,
-                                    pass: process.env.GOOGLE_APP_PASSWORD,
-                                },
-                            });
-                            let mailOptions = {
-                                from: "Tivas",
-                                to: `${user1.email}`,
-                                subject: "Confirm received email",
-                                text: projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() && projectResponse.closeDate?.getTime() !== convertDate(closeDate).getTime() ?
-                                    `Open date of ${projectResponse.name} is move to ${openDate} and Close date of ${projectResponse.name} is move to ${closeDate}`
-                                    : projectResponse.openDate?.getTime() !== convertDate(openDate).getTime() ?
-                                        `Open date of ${projectResponse.name} is move to ${openDate}`
-                                        : `Close date of ${projectResponse.name} is move to ${closeDate}`
-
-                            };
-                            console.log(user1.id);
-                            transporter.sendMail(mailOptions, function (error, info) {
-                                if (error) {
-                                    console.log(error);
-                                } else {
-                                    console.log("Email sent: " + info.response);
-                                }
-                            });
-                        }
-
+                        });
                     }
                 }
             }
@@ -937,29 +969,78 @@ export const openReservationTicket = (id) => {
             const check = await db.Project.findByPk(id)
             if (check) {
                 if (check.status === 0) {
-                    const timeShareDateResponse = await db.TimeShareDate.findOne({
-                        where: {
-                            projectID: id,
-                        },
-                        order: [['id', 'DESC']]
-                    })
-                    console.log(timeShareDateResponse.id);
-                    timeShareResponse = await db.TimeShare.findAll({
-                        where: {
-                            timeShareDateID: timeShareDateResponse.id,
-                        }
-                    })
-                    // if(check.reservationDate !== dateNow){
-                    //     message.push("not in the time to buy")
-                    // }else{
-                    if (timeShareResponse.length !== 0) {
-                        await db.Project.update({
-                            status: 1,
-                        }, {
+                    if (check.openDate) {
+                        const timeShareDateResponse = await db.TimeShareDate.findOne({
                             where: {
-                                id
+                                projectID: id,
+                            },
+                            order: [['id', 'DESC']]
+                        })
+                        timeShareResponse = await db.TimeShare.findAll({
+                            where: {
+                                timeShareDateID: timeShareDateResponse.id,
                             }
                         })
+                        // if(check.reservationDate !== dateNow){
+                        //     message.push("not in the time to buy")
+                        // }else{
+                        if (timeShareResponse.length !== 0) {
+                            await db.Project.update({
+                                status: 1,
+                            }, {
+                                where: {
+                                    id
+                                }
+                            })
+                            const wishlist = await db.WishList.findAll({
+                                include: [
+                                    {
+                                        model: db.User,
+                                        attributes: ["id", "email"]
+                                    },
+                                    {
+                                        model: db.Project,
+                                        attributes: ['id', 'name']
+                                    },
+                                ],
+                                where: {
+                                    projectID: check.id
+                                }
+                            })
+                            for (let i = 0; i < wishlist.length; i++) {
+                                console.log(wishlist[i].User.email);
+                                let transporter = nodemailer.createTransport({
+                                    service: "gmail",
+                                    auth: {
+                                        user: process.env.GOOGE_APP_EMAIL,
+                                        pass: process.env.GOOGLE_APP_PASSWORD,
+                                    },
+                                });
+                                const emailTemplatePath = "src/template/EmailWishListReservation/index.ejs";
+                                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+
+                                const data = {
+                                    email: wishlist[i].User.email,
+                                    projectName: wishlist[i].Project.name
+                                };
+
+                                const renderedHtml = ejs.render(emailTemplate, data);
+
+                                let mailOptions = {
+                                    from: "Tivas",
+                                    to: `${wishlist[i].User.email}`,
+                                    subject: "Wishlist Project",
+                                    html: renderedHtml
+                                };
+                                transporter.sendMail(mailOptions, function (error, info) {
+                                    if (error) {
+                                        console.log(error);
+                                    } else {
+                                        console.log("Email sent: " + info.response);
+                                    }
+                                });
+                            }
+                        }
                     }
                     // }
                 }
@@ -970,9 +1051,11 @@ export const openReservationTicket = (id) => {
                     `Project (${id}) does not exist!`
                     : check.status !== 0 ?
                         `Project (${id}) has already opened for reservation`
-                        : timeShareResponse.length === 0 ?
-                            `Project (${id}) does not have any TimeShares!`
-                            : `You can buy reservation ticket in Project (${id}) now`
+                        : !check.openDate ?
+                            `Project (${id}) does not have openDate or closeDate!`
+                            : timeShareResponse.length === 0 ?
+                                `Project (${id}) does not have any TimeShares!`
+                                : `You can buy reservation ticket in Project (${id}) now`
             })
         } catch (error) {
             console.log(error);
@@ -1003,8 +1086,8 @@ export const openBooking = (id) => {
                     const timeShareDatesResponse = await db.TimeShareDate.findOne({
                         where: {
                             projectID: id,
-                            status: 0,
-                        }
+                        },
+                        order: [['id', 'DESC']]
                     })
                     // Fetch records that need to be updated
                     const timeSharesToUpdate = await db.TimeShare.findAll({
@@ -1083,7 +1166,7 @@ export const openBooking = (id) => {
 //     })
 // }
 
-export const getReservation = (id) => {
+export const getReservationInfo = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
             let response = {};
@@ -1109,12 +1192,31 @@ export const getReservation = (id) => {
 export const updateReservationInfo = (id, { reservationDate, reservationPrice }) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let check;
+            let bookingProcess = [];
             const projectResponse = await db.Project.findByPk(id)
             //const message = [];
             //const dateNow = new Date().toDateString()
             if (projectResponse) {
+                console.log(projectResponse.reservationDate);
+                console.log(projectResponse.closeDate);
+                bookingProcess = await db.ReservationTicket.findAll({
+                    include: {
+                        model: db.Booking,
+                        where: {
+                            status: 0
+                        }
+                    },
+                    where: {
+                        projectID: id,
+                        reservationDate: projectResponse.reservationDate,
+                        closeDate: projectResponse.closeDate,
+                        status: 2
+                    }
+                })
+                console.log(bookingProcess);
                 if (projectResponse.status === 0 || projectResponse.status === 3) {
-                    if (projectResponse.status === 3) {
+                    if (projectResponse.status === 3 && bookingProcess.length === 0) {
                         await db.Project.update({
                             status: 0
                         }, {
@@ -1122,7 +1224,7 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice })
                                 id,
                             }
                         })
-                        await db.Project.update({
+                        check = await db.Project.update({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
                             openDate: null,
@@ -1132,56 +1234,112 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice })
                                 id
                             }
                         })
-                    }
-                    await db.Project.update({
-                        reservationDate: convertDate(reservationDate),
-                        reservationPrice,
-                    }, {
-                        where: {
-                            id
-                        }
-                    })
-                    const timeShareDatesResponse = await db.TimeShareDate.findOne({
-                        where: {
-                            projectID: id,
-                            status: 0
-                        }
-                    })
-                    console.log(timeShareDatesResponse);
-                    if (timeShareDatesResponse) {
-                        await db.TimeShareDate.update({
-                            reservationDate: convertDate(reservationDate),
-                            reservationPrice,
-                        }, {
-                            where: {
-                                projectID: id,
-                                status: 0,
-                            }
-                        })
-                        await db.ReservationTicket.update({
-                            reservationDate: convertDate(reservationDate),
-                            reservationPrice,
-                        }, {
-                            where: {
-                                reservationDate: timeShareDatesResponse.reservationDate,
-                            }
-                        })
-                    } else {
                         const timeShareDatesCreated = await db.TimeShareDate.create({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
                             projectID: id,
                             status: 0,
                         })
-                        await db.ReservationTicket.update({
+
+                        // await db.ReservationTicket.update({
+                        //     reservationDate: convertDate(reservationDate),
+                        //     reservationPrice,
+                        // }, {
+                        //     where: {
+                        //         reservationDate: timeShareDatesCreated.reservationDate,
+                        //     }
+                        // })
+                    } else if (projectResponse.status === 0) {
+                        check = await db.Project.update({
                             reservationDate: convertDate(reservationDate),
                             reservationPrice,
                         }, {
                             where: {
-                                reservationDate: timeShareDatesCreated.reservationDate,
+                                id
                             }
                         })
+                        const timeShareDatesResponse = await db.TimeShareDate.findOne({
+                            where: {
+                                projectID: id,
+                                status: 0
+                            }
+                        })
+                        if (timeShareDatesResponse) {
+                            await db.TimeShareDate.update({
+                                reservationDate: convertDate(reservationDate),
+                                reservationPrice,
+                            }, {
+                                where: {
+                                    projectID: id,
+                                    status: 0,
+                                }
+                            })
+                            await db.ReservationTicket.update({
+                                reservationDate: convertDate(reservationDate),
+                                reservationPrice,
+                            }, {
+                                where: {
+                                    reservationDate: timeShareDatesResponse?.reservationDate,
+                                }
+                            })
+                        } else {
+                            const timeShareDatesCreated = await db.TimeShareDate.create({
+                                reservationDate: convertDate(reservationDate),
+                                reservationPrice,
+                                projectID: id,
+                                status: 0,
+                            })
+                            await db.ReservationTicket.update({
+                                reservationDate: convertDate(reservationDate),
+                                reservationPrice,
+                            }, {
+                                where: {
+                                    reservationDate: timeShareDatesCreated?.reservationDate,
+                                }
+                            })
+                        }
                     }
+                    // const timeShareDatesResponse = await db.TimeShareDate.findOne({
+                    //     where: {
+                    //         projectID: id,
+                    //         status: 0
+                    //     }
+                    // })
+                    // console.log(timeShareDatesResponse);
+                    // if (timeShareDatesResponse) {
+                    //     await db.TimeShareDate.update({
+                    //         reservationDate: convertDate(reservationDate),
+                    //         reservationPrice,
+                    //     }, {
+                    //         where: {
+                    //             projectID: id,
+                    //             status: 0,
+                    //         }
+                    //     })
+                    //     await db.ReservationTicket.update({
+                    //         reservationDate: convertDate(reservationDate),
+                    //         reservationPrice,
+                    //     }, {
+                    //         where: {
+                    //             reservationDate: timeShareDatesResponse.reservationDate,
+                    //         }
+                    //     })
+                    // } else {
+                    //     const timeShareDatesCreated = await db.TimeShareDate.create({
+                    //         reservationDate: convertDate(reservationDate),
+                    //         reservationPrice,
+                    //         projectID: id,
+                    //         status: 0,
+                    //     })
+                    //     await db.ReservationTicket.update({
+                    //         reservationDate: convertDate(reservationDate),
+                    //         reservationPrice,
+                    //     }, {
+                    //         where: {
+                    //             reservationDate: timeShareDatesCreated.reservationDate,
+                    //         }
+                    //     })
+                    // }
                 }
                 //  else if (projectResponse.status === 1) {
                 //     await db.Project.update({
@@ -1255,14 +1413,16 @@ export const updateReservationInfo = (id, { reservationDate, reservationPrice })
                 // }
             }
             resolve({
-                err: !((projectResponse?.status === 1 || projectResponse?.status === 2) && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse?.reservationPrice !== reservationPrice)) ? 0 : 1,
+                err: check ? 0 : 1,
                 message: !projectResponse ?
                     `Project (${id}) does not exist!` :
                     projectResponse.status === 1 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
                         `Can not update Reservation Date or Reservation Price because Project(${id}) is already opened for reservation!`
                         : projectResponse.status === 2 && (projectResponse.reservationDate?.getTime() !== convertDate(reservationDate).getTime() || projectResponse.reservationPrice !== reservationPrice) ?
                             `Can not update Reservation Date, Reservation Price because Project(${id}) is already opened for booking!`
-                            : `Update Reservation for Project (${id}) successfully.`
+                            : projectResponse.status === 3 && bookingProcess.length !== 0 ?
+                                `Can not Reupdate Reservation for Project (${id}) because there are some booking process exist!`
+                                : `Update Reservation for Project (${id}) successfully.`
             })
         } catch (error) {
             console.log(error);
@@ -1403,7 +1563,7 @@ export const getAllSoldReservationStageOfProject = ({
                         for (let i = 0; i < timeShareDateResponse.length; i++) {
                             const timeShareDate = {};
                             timeShareDate.id = timeShareDateResponse[i].id;
-                            timeShareDate.date = `${formatDate(timeShareDateResponse[i].reservationDate)} - ${formatDate(timeShareDateResponse[i].closeDate)}`;
+                            timeShareDate.date = `${formatDate(timeShareDateResponse[i].reservationDate)} - ${formatDate(timeShareDateResponse[i].completedDate)}`;
                             timeShareDate.reservationPrice = timeShareDateResponse[i].reservationPrice;
                             timeShareDate.reservationDate = formatDate(timeShareDateResponse[i].reservationDate);
                             timeShareDate.openDate = formatDate(timeShareDateResponse[i].openDate);
@@ -1435,6 +1595,7 @@ export const getAllSoldReservationStageOfProject = ({
 export const statisticOnStage = (id) => {
     return new Promise(async (resolve, reject) => {
         try {
+            let response = {}
             let array = []
             const project = await db.TimeShareDate.findAll({
                 where: {
@@ -1447,7 +1608,9 @@ export const statisticOnStage = (id) => {
                 let countPurchased = 0;
                 let obj = {}
                 let check = true
-                obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].closeDate)
+                //obj.date = formatDate(project[i].reservationDate) + " - " + formatDate(project[i].completedDate)
+                obj.startDate = formatDate(project[i].reservationDate);
+                obj.completedDate = formatDate(project[i].completedDate);
                 //numberOfReservationTicketBought && numberOfTimeSharesBooked
                 const { count, rows } = await db.ReservationTicket.findAndCountAll({
                     where: {
@@ -1474,10 +1637,12 @@ export const statisticOnStage = (id) => {
                 let accept = 0
                 let deny = 0
                 let revenue = 0
+                let successRevenue = 0;
                 booking.forEach((item) => {
                     if (item.status == 1) {
                         accept++
                         revenue += item.priceBooking
+                        successRevenue += item.priceBooking
                     } else if (item.status == -1) {
                         deny++
                     } else {
@@ -1488,15 +1653,48 @@ export const statisticOnStage = (id) => {
                 revenue = revenue + countPurchased * project[i].reservationPrice
                 obj.numberOfTimeSharesPurchasedFailed = deny
                 obj.numberOfTimeSharesPurchasedSuccess = accept
+                obj.purchasedFailedPrice = deny * project[i].reservationPrice
+                obj.purchasedSuccessPrice = successRevenue + accept * project[i].reservationPrice
                 obj.revenue = revenue
                 if (check) array.push(obj)
             }
+            let total = {}
+            let numberOfReservationTicketBought = 0;
+            let numberOfTimeSharesBooked = 0;
+            let numberOfTimeSharesPurchasedFailed = 0;
+            let numberOfTimeSharesPurchasedSuccess = 0;
+            let purchasedFailedPrice = 0;
+            let purchasedSuccessPrice = 0;
+            let revenue = 0;
+
+            array.forEach((item) => {
+                numberOfReservationTicketBought += item.numberOfReservationTicketBought
+                numberOfTimeSharesBooked += item.numberOfTimeSharesBooked
+                numberOfTimeSharesPurchasedFailed += item.numberOfTimeSharesPurchasedFailed
+                numberOfTimeSharesPurchasedSuccess += item.numberOfTimeSharesPurchasedSuccess
+                purchasedFailedPrice += item.purchasedFailedPrice
+                purchasedSuccessPrice += item.purchasedSuccessPrice
+                revenue += item.revenue
+            })
+            total.numberOfReservationTicketBought = numberOfReservationTicketBought
+            total.numberOfTimeSharesBooked = numberOfTimeSharesBooked
+            total.numberOfTimeSharesPurchasedFailed = numberOfTimeSharesPurchasedFailed
+            total.numberOfTimeSharesPurchasedSuccess = numberOfTimeSharesPurchasedSuccess
+            total.purchasedFailedPrice = purchasedFailedPrice
+            total.purchasedSuccessPrice = purchasedSuccessPrice
+            total.revenue = revenue
+
+            if(array.length !== 0){
+                response.array = array;
+                response.total = total;
+            }
+
             resolve({
                 err: array.length !== 0 ? 0 : 1,
                 mess: array.length === 0 ?
                     `Project (${id}) does not have enough information for statistic!`
                     : `Project (${id})'s statistic.`,
-                data: array
+                data: response
             })
         } catch (error) {
             console.log(error);
@@ -1591,8 +1789,8 @@ export const getAllProjectSold = ({
                         project.locationID = projectResponse[i].Location.id
                         project.location = projectResponse[i].Location.name
                         project.numberOfSoldStage = numberOfSoldStage.length
-                        response.push(project);
                         project.numberOfTimeShareSold = numberOfTimeShareSold.length
+                        response.push(project);
                         //project.numberOfUserByTimeShare = projectResponse[i].Project.name
                     }
                 }
@@ -1634,6 +1832,98 @@ export const getAllProjectSold = ({
         } catch (error) {
             console.log(error);
             reject(error);
+        }
+    })
+}
+
+export const getAllReservation = ({
+    page,
+    limit,
+    orderBy,
+    orderType
+}) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            let response = [];
+            let pageInput = 1;
+            let countPages = 0;
+            let queries = pagination({ page, limit, orderType, orderBy });
+            const projectResponsePagination = await db.Project.findAll({
+                where: {
+                    status: {
+                        [Op.or]: [1, 2, 3]
+                    }
+                }
+            })
+            console.log(projectResponsePagination);
+            countPages = projectResponsePagination.length !== 0 ? 1 : 0;
+            if (projectResponsePagination.length / queries.limit > 1) {
+                countPages = Math.ceil(
+                    projectResponsePagination.length / queries.limit
+                );
+            }
+            if (page) {
+                pageInput = page;
+            }
+            if (pageInput <= countPages) {
+                const projectResponse = await db.Project.findAll({
+                    attributes: ['id', 'name', 'thumbnailPathUrl', 'status', 'buildingStatus', 'reservationDate', 'reservationPrice', 'openDate', 'closeDate', 'features', 'attractions', 'locationID'],
+                    include: [
+                        {
+                            model: db.Location,
+                            attributes: ['id', 'name']
+                        },
+                        {
+                            model: db.TypeOfProject,
+                            include: {
+                                model: db.Type
+                            }
+                        }
+                    ],
+                    where: {
+                        status: {
+                            [Op.or]: [1, 2, 3]
+                        }
+                    },
+                    ...queries,
+                })
+                if (projectResponse.length !== 0) {
+                    for (let i = 0; i < projectResponse.length; i++) {
+                        const project = {};
+                        project.id = projectResponse[i].id;
+                        project.name = projectResponse[i].name;
+                        project.thumbnailPathUrl = projectResponse[i].thumbnailPathUrl;
+                        project.status = projectResponse[i].status;
+                        project.buildingStatus = projectResponse[i].buildingStatus;
+                        project.reservationDate = formatDate(projectResponse[i].reservationDate);
+                        project.reservationPrice = projectResponse[i].reservationPrice;
+                        project.openDate = formatDate(projectResponse[i].openDate);
+                        project.closeDate = formatDate(projectResponse[i].closeDate);
+                        project.features = projectResponse[i].features;
+                        project.attractions = projectResponse[i].attractions;
+                        project.location = projectResponse[i].Location.name;
+                        let type;
+                        if (projectResponse[i].TypeOfProjects.length !== 2) {
+                            type = projectResponse[i].TypeOfProjects[0].Type.name
+                        } else {
+                            type = "Villa & Hotel";
+                        }
+                        project.typeOfProject = type
+                        response.push(project);
+                    }
+                }
+            }
+            resolve({
+                err: (response.length !== 0) ? 0 : 1,
+                message: (response.length !== 0) ? `Get all of projects reservation` : 'Can not find any projects reservation!',
+                data: (response.length !== 0) ? response : null,
+                count: response.length,
+                countPages: countPages,
+                page: pageInput
+            })
+        } catch (error) {
+            console.log(error);
+            reject(error)
         }
     })
 }

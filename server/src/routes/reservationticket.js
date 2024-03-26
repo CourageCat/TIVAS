@@ -5,7 +5,7 @@ const router = express.Router();
 router.post("/paymentreservation", controllers.paymentReservation);
 router.post("/createTicket", controllers.createTicket);
 router.put("/activeTicket/:id", controllers.activeTicket);
-router.get("/checkPriority/:id", controllers.checkPriority);
+router.put("/checkPriority", controllers.checkPriority);
 //router.get("/checkTicket", controllers.checkTicket)
 
 router.post("/createReservation", controllers.createReservation);
@@ -30,7 +30,7 @@ router.get("/getAllUserPriorityByStaff", controllers.getAllUserPriorityByStaff)
 
 router.get("/getAllTicketsByUser", controllers.getAllTicketsByUser)
 
-router.get("/getAllTicketsByAdmin/:id", controllers.getAllTicketsByAdmin)
+router.get("/getAllTicketsByAdmin", controllers.getAllTicketsByAdmin)
 
 //router.put("/refundUser/:id/:code", controllers.refundUser);
 

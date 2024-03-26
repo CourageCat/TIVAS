@@ -56,17 +56,17 @@ router.get(
 //thay doi openDate va closeDate
 router.put("/updateBooking/:id",controllers.updateBooking)
 //thay doi reservationPrice va reservationDate
-router.put("/changeReservationInfo/:id",controllers.updateReservation)
+//router.put("/changeReservationInfo/:id",controllers.updateReservation)
 //mo ban reservation ticket (status=2)
 router.put("/openReservationTicket/:id",controllers.openReservationTicket)
 //mo booking
 router.put("/openBooking/:id",controllers.openBooking)
 
-router.get("/getReservation/:id", controllers.getReservation)
+router.get("/getReservationInfo/:id", controllers.getReservationInfo)
 
 router.put("/updateReservationInfo/:id", controllers.updateReservationInfo)
 
-router.put("/getAllProjectReservation", controllers.getAllProjectReservation)
+//router.put("/getAllProjectReservation", controllers.getAllProjectReservation)
 
 router.put("/updateOrdering", controllers.updateOrdering)
 
@@ -80,6 +80,11 @@ router.get(
 router.get(
   "/getAllSold",
   controllers.getAllProjectSold
+)
+
+router.get(
+  "/getAllReservation",
+  controllers.getAllReservation
 )
 
 router.get("/statisticOnStage/:id", controllers.statisticOnStage)

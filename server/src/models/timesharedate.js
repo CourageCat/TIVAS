@@ -28,6 +28,7 @@ module.exports = (sequelize, DataTypes) => {
         openDate: DataTypes.DATE,
         closeDate: DataTypes.DATE,
         status: DataTypes.INTEGER,
+        completedDate: DataTypes.DATE,
         projectID: DataTypes.INTEGER
     }, {
         sequelize,

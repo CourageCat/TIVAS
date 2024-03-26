@@ -73,8 +73,7 @@ export const createReservation = async (req, res) => {
 };
 
 export const checkPriority = async (req, res) => {
-  const { id } = req.params;
-  const response = await services.checkPriority(id);
+  const response = await services.checkPriority(req.query);
   return res.status(200).json(response);
 };
 
@@ -129,10 +128,6 @@ export const getAllTicketsByUser = async (req, res) => {
 };
 
 export const getAllTicketsByAdmin = async (req, res) => {
-  const { id } = req.params;
-  if (!/^\d+$/.test(id)) {
-    return missValue("Missing value!", res);
-  }
-  const response = await services.getAllTicketsByAdmin(id);
+  const response = await services.getAllTicketsByAdmin(req.query);
   return res.status(200).json(response);
 };
