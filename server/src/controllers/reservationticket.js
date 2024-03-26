@@ -131,3 +131,9 @@ export const getAllTicketsByAdmin = async (req, res) => {
   const response = await services.getAllTicketsByAdmin(req.query);
   return res.status(200).json(response);
 };
+
+export const dashboardInTicket = async (req, res) => {
+  const { year } = req.params 
+  const response = await services.dashboardInTicket(year);
+  return res.status(200).json(response);
+}

@@ -25,6 +25,16 @@ function formatDate(date) {
     return formattedDate;
 }
 
+const convertDate = (dateString) => {
+    const parts = dateString.split('/');
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+
+    const date = new Date(year, month, day);
+    return date;
+}
+
 const refundLatestPayment = async (customerId) => {
     try {
         const charges = await stripe.charges.list({ customer: customerId });
@@ -2545,3 +2555,119 @@ export const getAllTicketsByAdmin = ({ id, status, page, limit, orderBy, orderTy
         }
     });
 };
+
+export const dashboardInTicket = (year) => {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const response = [];
+            let theFirstQuarter = await db.ReservationTicket.findAll({
+                include: {
+                    model: db.Project,
+                    include: {
+                        model: db.TimeShareDate,
+                        where: {
+                            completedDate: {
+                                [Op.lte]: convertDate(`31/3/${year}`)
+                            }
+                        }
+                    }
+                },
+                where: {
+                    reservationDate: {
+                        [Op.gte]: convertDate(`1/1/${year}`)
+                    },
+                }
+            })
+            let responseTheFirstQuarter = {}
+            responseTheFirstQuarter.quarter = "1"
+            responseTheFirstQuarter.date = `1/1/${year} - 31/3/${year}`
+            responseTheFirstQuarter.numberOfTicketBought = theFirstQuarter.length
+
+            let secondQuarter = await db.ReservationTicket.findAll({
+                // include: {
+                //     model: db.Project,
+                //     include: {
+                //         model: db.TimeShareDate,
+                //         where: {
+                //             completedDate: {
+                //                 [Op.lte]: convertDate(`30/6/${year}`)
+                //             }
+                //         }
+                //     }
+                // },
+                where: {
+                    reservationDate: {
+                        [Op.gte]: convertDate(`1/4/${year}`)
+                    },
+                }
+            })
+            console.log(secondQuarter.length);
+            let responseSecondQuarter = {}
+            responseSecondQuarter.quarter = "2"
+            responseSecondQuarter.date = `1/4/${year} - 30/6/${year}`
+            responseSecondQuarter.numberOfTicketBought = secondQuarter.length
+
+            let thirdQuarter = await db.ReservationTicket.findAll({
+                include: {
+                    model: db.Project,
+                    include: {
+                        model: db.TimeShareDate,
+                        where: {
+                            completedDate: {
+                                [Op.lte]: convertDate(`30/9/${year}`)
+                            }
+                        }
+                    }
+                },
+                where: {
+                    reservationDate: {
+                        [Op.gte]: convertDate(`1/7/${year}`)
+                    },
+                }
+            })
+            let responsethirdQuarter = {}
+            responsethirdQuarter.quarter = "3"
+            responsethirdQuarter.date = `1/7/${year} - 30/9/${year}`
+            responsethirdQuarter.numberOfTicketBought = thirdQuarter.length
+
+            let fourthQuarter = await db.ReservationTicket.findAll({
+                include: {
+                    model: db.Project,
+                    include: {
+                        model: db.TimeShareDate,
+                        where: {
+                            completedDate: {
+                                [Op.lte]: convertDate(`31/12/${year}`)
+                            }
+                        }
+                    }
+                },
+                where: {
+                    reservationDate: {
+                        [Op.gte]: convertDate(`1/10/${year}`)
+                    },
+                }
+            })
+            let responsefourthQuarter = {}
+            responsefourthQuarter.quarter = "4"
+            responsefourthQuarter.date = `1/10/${year} - 31/12/${year}`
+            responsefourthQuarter.numberOfTicketBought = fourthQuarter.length
+
+            if(responseTheFirstQuarter.numberOfTicketBought !== 0 || responseSecondQuarter.numberOfTicketBought !== 0 || responsethirdQuarter.numberOfTicketBought !== 0 || responsefourthQuarter.numberOfTicketBought !== 0){
+                response.push(responseTheFirstQuarter);
+                response.push(responseSecondQuarter);
+                response.push(responsethirdQuarter);
+                response.push(responsefourthQuarter);
+            }
+            resolve({
+                err: response.length !== 0 ? 0 : 1,
+                message: response.length !== 0 ? "Dashboard" : "Not have enough information to make a dashboard!",
+                data: response.length !== 0 ? response : null,
+            })
+
+        } catch (error) {
+            console.log(error);
+            reject(error);
+        }
+    })
+}

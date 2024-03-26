@@ -32,6 +32,8 @@ router.get("/getAllTicketsByUser", controllers.getAllTicketsByUser)
 
 router.get("/getAllTicketsByAdmin", controllers.getAllTicketsByAdmin)
 
+router.get("/dashboardInTicket/:year", controllers.dashboardInTicket)
+
 //router.put("/refundUser/:id/:code", controllers.refundUser);
 
 export default router;
