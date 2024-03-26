@@ -1694,7 +1694,7 @@ export const statisticOnStage = (id) => {
                 mess: array.length === 0 ?
                     `Project (${id}) does not have enough information for statistic!`
                     : `Project (${id})'s statistic.`,
-                data: response
+                data: array.length !== 0 ? response : null,
             })
         } catch (error) {
             console.log(error);
