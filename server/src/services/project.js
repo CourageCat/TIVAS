@@ -1339,10 +1339,18 @@ export const statistic = (id) => {
                 obj.revenue = revenue
                 if(check) array.push(obj)
             }
+            let total = []
+            array.forEach((item) => {
+                total.numberOfReservationTicketBought += item.numberOfReservationTicketBought
+                total.numberOfTimeSharesBooked += item.numberOfTimeSharesBooked
+                total.numberOfTimeSharesPurchasedFailed += item.numberOfTimeSharesPurchasedFailed
+                total.numberOfTimeSharesPurchasedSuccess += item.numberOfTimeSharesPurchasedSuccess
+                total.revenue += item.revenue
+            })
             resolve({
                 err: 0,
                 mess: "Update ordering successfully",
-                data : array
+                data : array , total
             })
         } catch (error) {
             console.log(error);
