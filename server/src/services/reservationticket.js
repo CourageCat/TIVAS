@@ -4,9 +4,9 @@ import "dotenv/config";
 import { Model, Op, fn, col, literal, where } from "sequelize";
 const nodemailer = require("nodemailer");
 import ejs from "ejs";
-import { log } from "console";
 const fs = require("fs");
 import { pagination } from "../middlewares/pagination";
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 function formatDate(date) {
     // Ensure 'date' is a valid Date object
@@ -25,6 +25,35 @@ function formatDate(date) {
     return formattedDate;
 }
 
+const refundLatestPayment = async (customerId) => {
+    try {
+        const charges = await stripe.charges.list({ customer: customerId });
+
+        const latestCharge = charges.data[0];
+
+        if (latestCharge) {
+            const refund = await stripe.refunds.create({
+                charge: latestCharge.id,
+            });
+            console.log(
+                "Success refunds",
+                latestCharge.id + " của khách hàng",
+                customerId + ":",
+                refund
+            );
+        } else {
+            console.log("No charge found for customer", customerId);
+        }
+    } catch (error) {
+        console.error("Error refunds:", error);
+        throw error;
+    }
+};
+const refundForMultipleCustomers = async (customers) => {
+    for (const customer of customers) {
+        await refundLatestPayment(customer?.refundHistoryID);
+    }
+};
 
 export const paymentReservation = (username) => {
     return new Promise(async (resolve, reject) => {
@@ -363,10 +392,10 @@ export const createReservation = ({
                                             : ticketDuplicated ?
                                                 `TimeShare (${timeShareID}) has already registerd with the ticket (${code})!`
                                                 : ticketRegisterAnother ?
-                                                `Ticket (${code}) has already registerd with another TimeShare`
-                                                : userUsedTicket ?
-                                                    `Can not use two or more tickets to register one TimeShare! (User (${ticketResponse.userID}) has already used one ticket to register TimeShare(${timeShareID}))`
-                                                    : 'Create successfully.',
+                                                    `Ticket (${code}) has already registerd with another TimeShare`
+                                                    : userUsedTicket ?
+                                                        `Can not use two or more tickets to register one TimeShare! (User (${ticketResponse.userID}) has already used one ticket to register TimeShare(${timeShareID}))`
+                                                        : 'Create successfully.',
             })
         }
         catch (error) {
@@ -375,7 +404,6 @@ export const createReservation = ({
         }
     })
 }
-
 
 //1 nguoi ap 2 code cho 1 TimeShare
 // export const createReservation = ({
@@ -555,12 +583,14 @@ export const checkPriority = ({ id, type }) => {
                             for (let properties in result) {
                                 count1 = count1 + 1
                             }
-                            let random = []
-                            let chooseRandom = []
+                            // let random = []
+                            // let chooseRandom = []
                             for (let i = 0; i < count1; i++) {
                                 const quantityTimeshare = await db.TimeShare.findByPk(Object.getOwnPropertyNames(result)[i])
                                 //choose random
                                 if (type == "random") {
+                                    let random = [];
+                                    let chooseRandom = [];
                                     const code = await db.ReservationTicket.findAll({
                                         where: {
                                             timeShareID: quantityTimeshare.id
@@ -569,48 +599,55 @@ export const checkPriority = ({ id, type }) => {
                                     code.forEach((item) => {
                                         random.push(item.code)
                                     })
+
                                     //chooseRandom is array userchoose
                                     for (let i = 0; i < quantityTimeshare.quantity; i++) {
                                         var item = random[Math.floor(Math.random() * random.length)];
-                                        let index = random.indexOf(item)
-                                        random.splice(index, 1)
-                                        chooseRandom.push(item)
+                                        if (item) {
+                                            let index = random.indexOf(item)
+                                            random.splice(index, 1)
+                                            chooseRandom.push(item)
+                                        }
                                     }
-
-                                    const codeUser = await db.ReservationTicket.findAll({
-                                        where: {
-                                            code: chooseRandom
-                                        }
-                                    })
-                                    let arrUser = []
-                                    codeUser.forEach((item) => {
-                                        arrUser.push(item.userID)
-                                    })
-                                    //user is all user is choose
-                                    const user = await db.User.findAll({
-                                        where: {
-                                            id: arrUser
-                                        }
-                                    })
-                                }
-                            }
-                            for (let i = 0; i < count1; i++) {
-                                const quantityTimeshare = await db.TimeShare.findByPk(Object.getOwnPropertyNames(result)[i])
-                                for (let x = 0; x < quantityTimeshare.quantity; x++) {
-                                    const reservation = result[Object.getOwnPropertyNames(result)[i]][x]
-                                    if (reservation) {
+                                    for (let i = 0; i < chooseRandom.length; i++) {
+                                        console.log(`TimeShare (${quantityTimeshare.id}) : ${chooseRandom[i]}`);
+                                        const reservation = await db.ReservationTicket.findOne({
+                                            include: [
+                                                {
+                                                    model: db.User,
+                                                    attributes: ['id', 'username', 'email']
+                                                },
+                                                {
+                                                    model: db.Project,
+                                                    attributes: ['id', 'name']
+                                                },
+                                                {
+                                                    model: db.TimeShare,
+                                                    atributes: ['id', 'startDate', 'endDate'],
+                                                    include: [
+                                                        {
+                                                            model: db.TypeRoom,
+                                                            attributes: ['id', 'name']
+                                                        },
+                                                    ]
+                                                },
+                                            ],
+                                            where: {
+                                                code: chooseRandom[i]
+                                            }
+                                        })
                                         await db.ReservationTicket.update({
                                             status: 2
                                         }, {
                                             where: {
-                                                id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.id
+                                                code: chooseRandom[i]
                                             }
                                         })
                                         await db.TimeShare.decrement({
                                             quantity: 1
                                         }, {
                                             where: {
-                                                id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.timeShareID
+                                                id: quantityTimeshare.id
                                             }
                                         })
                                         const timeShare = reservation.TimeShare;
@@ -664,8 +701,98 @@ export const checkPriority = ({ id, type }) => {
                                             }
                                         });
                                     }
+
+                                    // const codeUser = await db.ReservationTicket.findAll({
+                                    //     where: {
+                                    //         code: chooseRandom
+                                    //     }
+                                    // })
+                                    //console.log(codeUser);
+                                    // let arrUser = []
+                                    // codeUser.forEach((item) => {
+                                    //     arrUser.push(item.userID)
+                                    // })
+                                    // //user is all user is choose
+                                    // const user = await db.User.findAll({
+                                    //     where: {
+                                    //         id: arrUser
+                                    //     }
+                                    // })
+                                }
+                                //choose normal
+                                else {
+                                    for (let x = 0; x < quantityTimeshare.quantity; x++) {
+                                        const reservation = result[Object.getOwnPropertyNames(result)[i]][x]
+                                        if (reservation) {
+                                            await db.ReservationTicket.update({
+                                                status: 2
+                                            }, {
+                                                where: {
+                                                    id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.id
+                                                }
+                                            })
+                                            await db.TimeShare.decrement({
+                                                quantity: 1
+                                            }, {
+                                                where: {
+                                                    id: result[Object.getOwnPropertyNames(result)[i]][x].dataValues.timeShareID
+                                                }
+                                            })
+                                            const timeShare = reservation.TimeShare;
+                                            const user = reservation.User
+                                            const project = reservation.Project
+                                            const startDateDB = new Date(timeShare.updatedAt);
+                                            const endDateDB = timeShare.updatedAt;
+                                            endDateDB.setDate(endDateDB.getDate() + 7);
+                                            await db.Booking.create({
+                                                startDate: startDateDB,
+                                                endDate: endDateDB,
+                                                status: 0,
+                                                priceBooking: timeShare.price - reservation.reservationPrice,
+                                                reservationTicketID: reservation.id,
+                                            })
+                                            let transporter = nodemailer.createTransport({
+                                                service: "gmail",
+                                                auth: {
+                                                    user: process.env.GOOGE_APP_EMAIL,
+                                                    pass: process.env.GOOGLE_APP_PASSWORD,
+                                                },
+                                            });
+                                            const emailTemplatePath = "src/template/EmailWinner/index.ejs";
+                                            const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+
+                                            const data = {
+                                                email: user.email,
+                                                projectName: project.name,
+                                                typeRoomName: timeShare.TypeRoom.name,
+                                                startDate: formatDate(timeShare.startDate),
+                                                endDate: formatDate(timeShare.endDate),
+                                                reservationPrice: reservation.reservationPrice,
+                                                timeSharePrice: timeShare.price,
+                                                bookingPrice: timeShare.price - reservation.reservationPrice
+                                            };
+
+                                            const renderedHtml = ejs.render(emailTemplate, data);
+
+                                            let mailOptions = {
+                                                from: "Tivas",
+                                                to: `${user.email}`,
+                                                subject: "Confirm received email",
+                                                html: renderedHtml,
+                                            };
+
+                                            transporter.sendMail(mailOptions, function (error, info) {
+                                                if (error) {
+                                                    console.log(error);
+                                                } else {
+                                                    console.log("Email sent: " + info.response);
+                                                }
+                                            });
+                                        }
+                                    }
                                 }
                             }
+
 
                             const timeShareOnSale = await db.TimeShareDate.findOne({
                                 where: {
@@ -688,6 +815,7 @@ export const checkPriority = ({ id, type }) => {
                                         //closeDate: timeShareOnSale?.closeDate,
                                     }
                                 })
+
                             const ticketFailedResponse = await db.ReservationTicket.findAll({
                                 nest: true,
                                 raw: true,
@@ -782,7 +910,6 @@ export const checkPriority = ({ id, type }) => {
                                 user.refundHistoryID = ticketFailedResponse[i].User.refundHistoryID;
                                 userNoPriority.push(user);
                             }
-
                             //No User Booking
                         } else {
                             await db.TimeShareDate.update({
@@ -792,6 +919,8 @@ export const checkPriority = ({ id, type }) => {
                                     id: timeShareDatesResponse.id
                                 }
                             })
+
+                            //update completedDate
                             const timeShareDateUpdated = await db.TimeShareDate.findOne({
                                 where: {
                                     id: timeShareDatesResponse.id
@@ -869,8 +998,68 @@ export const checkPriority = ({ id, type }) => {
                                         id: ticketFailedResponse[i].id
                                     }
                                 })
+                                //Send mail to failed User
+                                let transporter = nodemailer.createTransport({
+                                    service: "gmail",
+                                    auth: {
+                                        user: process.env.GOOGE_APP_EMAIL,
+                                        pass: process.env.GOOGLE_APP_PASSWORD,
+                                    },
+                                });
+                                let emailTemplatePath;
+                                let data;
+                                if (ticketFailedResponse[i].TimeShare.id) {
+                                    emailTemplatePath = "src/template/EmailFailed/index.ejs";
+                                    data = {
+                                        email: ticketFailedResponse[i].User.email,
+                                        projectName: ticketFailedResponse[i].Project.name,
+                                        typeRoomName: ticketFailedResponse[i].TimeShare?.TypeRoom.name,
+                                        startDate: formatDate(ticketFailedResponse[i].TimeShare?.startDate),
+                                        endDate: formatDate(ticketFailedResponse[i].TimeShare?.endDate),
+                                        reservationPrice: ticketFailedResponse[i].reservationPrice,
+                                    };
+                                } else {
+                                    emailTemplatePath = "src/template/EmailFailedNoTimeShare/index.ejs";
+                                    data = {
+                                        email: ticketFailedResponse[i].User.email,
+                                        projectName: ticketFailedResponse[i].Project.name,
+                                        reservationPrice: ticketFailedResponse[i].reservationPrice,
+                                    };
+                                }
+                                const emailTemplate = fs.readFileSync(emailTemplatePath, "utf-8");
+                                const renderedHtml = ejs.render(emailTemplate, data);
+
+                                let mailOptions = {
+                                    from: "Tivas",
+                                    to: `${ticketFailedResponse[i].User.email}`,
+                                    subject: "Confirm received email",
+                                    html: renderedHtml,
+                                };
+
+                                transporter.sendMail(mailOptions, function (error, info) {
+                                    if (error) {
+                                        console.log(error);
+                                    } else {
+                                        console.log("Email sent: " + info.response);
+                                    }
+                                });
+
+                                //Update completed = 1
+                                await db.ReservationTicket.update({
+                                    completed: 1
+                                }, {
+                                    where: {
+                                        id: ticketFailedResponse[i].id
+                                    }
+                                })
+                                const user = {};
+                                user.id = ticketFailedResponse[i].User.id;
+                                user.username = ticketFailedResponse[i].User.username;
+                                user.refundHistoryID = ticketFailedResponse[i].User.refundHistoryID;
+                                userNoPriority.push(user);
                             }
                         }
+                        await refundForMultipleCustomers(userNoPriority);
                     }
                 }
             }
@@ -1634,12 +1823,12 @@ export const getAllUserPriorityByStaff = ({
                                 },
                             ],
                             where: {
-                            projectID: id,
-                            status: 2,
-                            reservationDate: timeShareOnSale?.reservationDate,
-                            closeDate: timeShareOnSale?.closeDate,
-                            completed: 0
-                        }
+                                projectID: id,
+                                status: 2,
+                                reservationDate: timeShareOnSale?.reservationDate,
+                                closeDate: timeShareOnSale?.closeDate,
+                                completed: 0
+                            }
                         });
                         if (ticketResponse.length !== 0) {
                             for (let i = 0; i < ticketResponse.length; i++) {
