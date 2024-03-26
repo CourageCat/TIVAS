@@ -314,6 +314,7 @@ export const getAllTimeShareOfProject = (projectID, {
                             attributes: [],
                             where: {
                                 status: 0,
+                                projectID,
                             }
                         }
                     ],
@@ -360,6 +361,7 @@ export const getAllTimeShareOfProject = (projectID, {
                                 attributes: [],
                                 where: {
                                     status: 0,
+                                    projectID,
                                 }
                             }
                         ],
