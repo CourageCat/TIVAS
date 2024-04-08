@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Email template</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Google font -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Aclonica&family=Inter:wght@300;400;500;600;700&family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,300;1,400;1,500;1,600;1,700;1,800&display=swap"
+      rel="stylesheet"
+    />
+    <!-- CSS -->
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html {
+        font-size: 62.5%;
+      }
+
+      body {
+        font-size: 1.6rem;
+      }
+
+      /* ================== */
+      .body {
+        background-color: #fff;
+      }
+
+      /* Common */
+
+      .desc {
+        font-family: "Inter", sans-serif;
+        font-size: 1.4rem;
+        font-weight: 400;
+        line-height: 1.8;
+        color: #000;
+      }
+
+      /* Header ========= */
+
+      .header {
+        margin-top: 48px;
+        text-align: center;
+      }
+
+      .logo {
+        color: #000;
+        font-family: "Aclonica", sans-serif;
+        font-size: 3.4rem;
+        font-style: normal;
+        font-weight: 400;
+        line-height: 1.3;
+      }
+
+      /* Main ============== */
+      .main {
+        padding: 32px 48px 0;
+      }
+
+      .main .content {
+        margin-top: 32px;
+      }
+
+      .top {
+      }
+
+      .full_name {
+        font-family: "Inter", sans-serif;
+        font-size: 2.4rem;
+        font-weight: 500;
+        color: #000;
+      }
+
+      .top.desc {
+      }
+
+      .otp {
+        margin-top: 32px;
+        width: 100%;
+        text-align: center;
+      }
+
+      .otp .number {
+        display: inline-block;
+        background: #f9f4fd;
+        border-radius: 5px;
+        padding: 20px;
+        font-family: "Inter", sans-serif;
+        font-size: 1.4rem;
+        font-weight: 600;
+      }
+
+      .otp .number + .number {
+        margin-left: 36px;
+      }
+
+      .regard {
+        color: #892cdc;
+        font-weight: 700;
+      }
+
+      /* Footer =========== */
+      .footer {
+        margin-top: 80px;
+      }
+
+      .footer .border {
+        width: 100%;
+        height: 1px;
+        background-color: #d9d9d9;
+      }
+
+      .footer .desc {
+        margin-top: 16px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="body">
+      <!-- Header -->
+      <header class="header">
+        <h1 class="logo">TIVAS</h1>
+      </header>
+      <!-- Main -->
+      <main class="main">
+        <h2 class="full_name">Hi <%=email%>,</h2>
+        <div class="content">
+          <p class="desc">You have won this Time Share.</p>
+          <p class="desc">
+            Time Share Details:
+          </p>
+          <p class="desc">
+            - Project: <%=projectName%>,
+          </p>
+          <p class="desc">
+            - Type of room:  <%=typeRoomName%>
+          </p>
+          <p class="desc">
+            - Date: <%=startDate%> -<%=endDate%>
+          </p>
+        </div>
+<br>
+        <div class="content">
+          <p class="desc">Please coming back to our pages to see more details of your TimeShare.</p>
+        </div>
+        <br>
+
+        <div class="content">
+            <p class="desc">Your reservation amount (<%=reservationPrice%>$) will be converted into part of TimeShare's amount (<%=timeSharePrice%>$).</p>
+            <p class="desc">You need to pay (<%=bookingPrice%>$) to pay an additional to get this TimeShare.</p>
+            <p class="desc">Our staffs will contact you later.</p>
+          </div>
+
+          <div class="content">
+            <p class="desc">Please remembering you have only 7 days from today to complete buying your winning TimeShares!</p>
+          </div>
+<br>
+        <div class="content">
+          <p class="desc">Best Regards,</p>
+          <p class="desc regard">TIVAS team.</p>
+        </div>
+      </main>
+      <!-- Footer -->
+      <footer class="footer">
+        <div class="border"></div>
+        <h4 class="desc">© 2023 TIVAS. All rights reserved.</h4>
+      </footer>
+    </div>
+  </body>
+</html>
