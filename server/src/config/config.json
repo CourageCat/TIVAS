@@ -17,10 +17,13 @@
         "dialect": "mysql"
     },
     "production": {
-        "username": "root",
-        "password": null,
-        "database": "database_production",
-        "host": "127.0.0.1",
-        "dialect": "mysql"
+        "username": "avnadmin",
+        "password": "AVNS_DSHLezvUOkpRdY2e1AM",
+        "database": "tivas",
+        "host": "tivas-mysql-minhhien270103-12b5.a.aivencloud.com",
+        "dialect": "mysql",
+        "logging": false,
+        "timezone": "+07:00",
+        "port": 20755
     }
 }
