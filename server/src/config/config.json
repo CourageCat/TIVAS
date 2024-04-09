@@ -1,12 +1,13 @@
 {
     "development": {
-        "username": "root",
-        "password": "0913607875az",
+        "username": "avnadmin",
+        "password": "AVNS_DSHLezvUOkpRdY2e1AM",
         "database": "tivas",
-        "host": "127.0.0.1",
+        "host": "tivas-mysql-minhhien270103-12b5.a.aivencloud.com",
         "dialect": "mysql",
         "logging": false,
-        "timezone": "+07:00"
+        "timezone": "+07:00",
+        "port": 20755
     },
     "test": {
         "username": "root",
