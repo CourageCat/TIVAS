@@ -1,0 +1,2 @@
+INSERT INTO `TimeShareDates` (`id`, `startDate`, `endDate`, `reservationPrice`, `reservationDate`, `openDate`, `closeDate`, `status`, `projectID`, `createdAt`, `updatedAt`) VALUES
+(1, '2024-06-05 00:00:00', '2024-06-12 00:00:00', 500, '2024-03-15 17:00:00', '2024-03-19 17:00:00', '2024-03-20 17:00:00', 0, 10, '2024-03-11 12:31:18', '2024-03-11 12:31:18');

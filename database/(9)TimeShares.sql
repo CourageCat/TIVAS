@@ -1,0 +1,10 @@
+INSERT INTO `TimeShares` (`id`, `price`, `startDate`, `endDate`, `saleStatus`, `quantity`, `timeShareDateID`, `typeRoomID`, `userID`, `createdAt`, `updatedAt`) VALUES
+(1, 1500, '2024-06-05 00:00:00', '2024-06-12 00:00:00', 1, 2, 1, 1, 14, '2024-03-01 14:25:03', '2024-03-09 12:41:59');
+INSERT INTO `TimeShares` (`id`, `price`, `startDate`, `endDate`, `saleStatus`, `quantity`, `timeShareDateID`, `typeRoomID`, `userID`, `createdAt`, `updatedAt`) VALUES
+(2, 1700, '2024-06-05 00:00:00', '2024-06-12 00:00:00', 1, 5, 1, 2, 14, '2024-03-01 14:25:06', '2024-03-09 12:41:59');
+INSERT INTO `TimeShares` (`id`, `price`, `startDate`, `endDate`, `saleStatus`, `quantity`, `timeShareDateID`, `typeRoomID`, `userID`, `createdAt`, `updatedAt`) VALUES
+(3, 2500, '2024-06-05 00:00:00', '2024-06-12 00:00:00', 1, 5, 1, 3, 14, '2024-03-01 14:25:09', '2024-03-09 12:42:00');
+INSERT INTO `TimeShares` (`id`, `price`, `startDate`, `endDate`, `saleStatus`, `quantity`, `timeShareDateID`, `typeRoomID`, `userID`, `createdAt`, `updatedAt`) VALUES
+(4, 1800, '2024-06-05 00:00:00', '2024-06-12 00:00:00', 1, 5, 1, 13, 15, '2024-03-01 14:25:14', '2024-03-01 14:25:14'),
+(5, 2300, '2024-06-05 00:00:00', '2024-06-12 00:00:00', 1, 5, 1, 14, 15, '2024-03-01 14:25:17', '2024-03-09 12:42:00'),
+(6, 2400, '2024-06-05 00:00:00', '2024-06-12 00:00:00', 1, 5, 1, 15, 15, '2024-03-01 14:25:19', '2024-03-09 12:42:00');
